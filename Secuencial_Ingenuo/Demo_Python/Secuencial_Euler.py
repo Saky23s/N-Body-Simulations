@@ -3,9 +3,9 @@ import csv
 import itertools
 from Vec3 import Vec3
 
-G = 6.67e-11
+G = 6.674299999999999e-08 
 dt = 3600
-t = 0
+
 class Body:
     '''
     Class that defines a body in the system
@@ -23,7 +23,7 @@ class Body:
         self.pos = pos
         self.mass = mass
         self.velocity = velocity
-
+        self.acceleration = Vec3(0.0,0.0,0.0)
     
     def accelerate(self, other):
         '''
@@ -33,18 +33,25 @@ class Body:
         '''
         distance =  self.pos - other.pos
         distance_magnitud =  distance.mag()
+        print(distance_magnitud)
 
-        aceleration = (distance * (-G) * other.mass) / (distance_magnitud **3)
-        self.velocity = self.velocity + aceleration * dt
+        aceleration_magnitud = ((-G) * other.mass) / (distance_magnitud **3)
+        aceleration =  distance * aceleration_magnitud
+        self.acceleration = self.acceleration  + aceleration
 
     def move(self):
-        self.pos = self.pos + self.velocity*dt
+        print( self.acceleration, dt, self.acceleration * dt )
+        print(self)
+        self.velocity = self.velocity + self.acceleration * dt
+        self.pos = self.pos + self.velocity * dt
+        self.acceleration = Vec3(0.0,0.0,0.0)
+        print(self)
 
     def __str__(self) -> str:
         '''
         Pretty print
         '''
-        return f"Id: {self.id}\nPosition: {self.pos}\nMass: {self.mass}\Velocity: {self.velocity}\n"
+        return f"Id: {self.id}\nPosition: {self.pos}\nMass: {self.mass}\nVelocity: {self.velocity}\n"
     
 
 def load_bodies() -> list:
@@ -61,7 +68,6 @@ def load_bodies() -> list:
         #Create bodies
         for row in csvreader:
             result.append(Body(Vec3(float(row[0]), float(row[1]), float(row[2])), float(row[3]), Vec3(float(row[4]), float(row[5]), float(row[6]))))
-    
     #Return list of bodies
     return result
 if __name__ == "__main__":
@@ -74,7 +80,8 @@ if __name__ == "__main__":
         forces[i] = Vec3(0.0,0.0,0.0)
     
     #Simulate 100 times
-    for count in range(100):
+    t = 0.0
+    for count in range(1000):
         #Calculate forces
         for i in range(n):
             for j in range(n):
@@ -82,10 +89,14 @@ if __name__ == "__main__":
                     continue
                 bodies[i].accelerate(bodies[j])
 
-        f = open(f"data_euler/{count + 1}.csv", "w")
+        t += dt
+
+        f = open(f"data/{count + 1}.csv", "w")
+
         for i in range(n):
             bodies[i].move()
-            f.write(f"{bodies[i].pos.x},{bodies[i].pos.y}, {bodies[i].pos.z}\n")
+            f.write(f"{bodies[i].pos.x},{bodies[i].pos.y},{bodies[i].pos.z}\n")
         f.close()
+
         
         

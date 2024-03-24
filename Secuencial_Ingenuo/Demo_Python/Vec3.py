@@ -44,6 +44,7 @@ class Vec3:
             raise TypeError("operand must be Vec3, int, or float")
 
     def __truediv__(self, other):
+        
         '''Redefine divition between vector and number'''
         if isinstance(other, (int, float)):
             return Vec3(
