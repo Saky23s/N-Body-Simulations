@@ -58,9 +58,9 @@ class Vec3:
         '''Get the normal of the vector'''
         mag = self.mag()
         return Vec3(self.x / mag, self.y / mag, self.z / mag)
-    def mag(self):
+    def mag(self, softening:float = 0.0):
         '''Get the maginitude of the vector'''
-        return math.sqrt(self.x ** 2 + self.y ** 2 + self.z ** 2)
+        return math.sqrt(self.x ** 2 + self.y ** 2 + self.z ** 2 + softening**2)
       
     def __getitem__(self, item):
         '''Get x,y,z by index'''
