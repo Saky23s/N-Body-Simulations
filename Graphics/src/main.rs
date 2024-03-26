@@ -243,15 +243,21 @@ fn main()
 
         //Set yp some different colors for the bodies
         let colors = [
-            [0.6274509803921569,0.8274509803921568,0.17647058823529413],
-            [0.17647058823529413, 0.6274509803921569, 0.8274509803921568],
-            [0.8274509803921568,0.17647058823529413,0.6274509803921569]
+            [1.0,0.8274509803921568,0.00392156862745098, 1.0], //Yellow
+            [0.36470588235294116, 0.6784313725490196, 0.9215686274509803, 1.0], //Blue
+            [0.7607843137254902,0.23137254901960785,0.12941176470588237, 1.0]
             ];
+        let n_colors = colors.len();
+
         //Create an array of meshs of different colors
-        let mut bodies: Vec<mesh::Body> = Vec::new();
+        let mut bodies: Vec<mesh::Mesh> = Vec::new();
         
-        // Load the body
-        let body = mesh::Body::load("resources/sphere.obj", [1.0, 0.0, 0.831, 1.0]);
+        // Load the bodies with diferent colors
+        for color in colors
+        {
+            let body = mesh::Body::load("resources/sphere.obj", color);
+            bodies.push(body);
+        }
         
         // Transformation matrixes
         let mut camera_rotation: Vec<f32> = vec![-0.0000010281801,-0.041666705];
@@ -268,8 +274,13 @@ fn main()
                 1000.0
             );
         
-        //Set up VAO 
-        let body_vao = unsafe { create_vao(&body.vertices, &body.indices, &body.colors, &body.normals) };
+        //Set up array of vaos with different colors 
+        let mut bodies_vaos: Vec<u32> = Vec::new();
+        for body in &bodies
+        {
+            let body_vao = unsafe { create_vao(&body.vertices, &body.indices, &body.colors, &body.normals) };
+            bodies_vaos.push(body_vao)
+        }
         
         //Create the nodes
         //Root node
@@ -291,8 +302,8 @@ fn main()
                 for record in records 
                 {
                     //Create
-                    bodies_vector.push(SceneNode::from_vao(body_vao, body.index_count));
-                    bodies_vector[n].calculate_reference_point(&body.vertices);
+                    bodies_vector.push(SceneNode::from_vao(bodies_vaos[n % n_colors], bodies[n % n_colors].index_count));
+                    bodies_vector[n].calculate_reference_point(&bodies[n % n_colors].vertices);
 
                     //Body is the child of the main node
                     root_node.add_child(&bodies_vector[n]);
