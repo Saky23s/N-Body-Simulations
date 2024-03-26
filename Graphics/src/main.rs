@@ -1,5 +1,4 @@
-// Uncomment these following global attributes to silence most warnings of "low" interest:
-
+// Comment these following global attributes to see most warnings of "low" interest:
 #![allow(dead_code)]
 #![allow(non_snake_case)]
 #![allow(unreachable_code)]
@@ -12,11 +11,7 @@ use std::f32::consts::PI;
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 use std::{mem, os::raw::c_void, ptr};
-use std::error::Error;
-use std::fs::File;
-use serde::Deserialize;
-use csv::ReaderBuilder;
-use std::fs;
+
 
 mod shader;
 mod util;
@@ -123,7 +118,9 @@ unsafe fn draw_scene(node: &scene_graph::SceneNode, shaders: &Shader, view_proje
     {   
         let mut view :glm::Mat4  = *view_projection_matrix;
         let mut node_translation: glm::Mat4 = glm::translation(&glm::vec3(node.position[0], node.position[1], node.position[2]));
-        
+        node_translation = glm::scale(&node_translation,&node.scale); // Scale first, Translate second
+
+
         let mut reference_point_traslation: glm::Mat4 = glm::translation(&glm::vec3(node.reference_point[0], node.reference_point[1], node.reference_point[2]));
         let mut reference_point_traslation_inverse: glm::Mat4 = glm::translation(&glm::vec3(-node.reference_point[0], -node.reference_point[1], -node.reference_point[2]));
         let mut rotation_x: glm::Mat4 = glm::rotation(node.rotation[0], &glm::vec3(1.0, 0.0, 0.0));
@@ -161,51 +158,6 @@ unsafe fn draw_scene(node: &scene_graph::SceneNode, shaders: &Shader, view_proje
         draw_scene(&*child, shaders, view_projection_matrix, &trasformation);
     }
 }
-
-//Struct to be able to easily read from file
-#[derive(Debug, Deserialize)]
-struct RunningBodyData
-{
-    x: f32,
-    y: f32,
-    z: f32,
-}
-
-//Helper funtion to check if a file exists
-fn file_exists(path: &str) -> bool 
-{
-    if let Ok(metadata) = fs::metadata(path) { metadata.is_file() } 
-    else { false }
-}
-
-//Funtion to read the new positions of all the bodies from a csv file
-fn read_running_data_csv(path: &str) -> Result<Vec<RunningBodyData>, Box<dyn Error>> 
-{
-    // Opens the CSV file
-    let file = File::open(path)?;
-    let mut reader = ReaderBuilder::new().has_headers(false).from_reader(file);
-
-    // Collect records into a vector
-    let mut records = Vec::new();
-    
-    //Read all rows
-    for result in reader.deserialize() 
-    {   
-        //Create a RunningBodyData with that row
-        let record: (f32, f32, f32) = result?;
-        let RunningBodyData = RunningBodyData 
-        {
-            x: record.0,
-            y: record.1,
-            z: record.2,
-        };
-        //Add to the vector
-        records.push(RunningBodyData);
-    }
-    //Return vector
-    Ok(records)
-}
-
 
 fn main() 
 {
@@ -328,10 +280,10 @@ fn main()
         
         let mut t = 1;
         //Read body files
-        let path = "../Secuencial_Ingenuo/Demo_Python/data/1.csv";
+        let path = "../Secuencial_Ingenuo/Demo_Python/starting_config/bodies.csv";
         let mut n = 0;
         
-        match read_running_data_csv(path) 
+        match util::read_starting_data_csv(path) 
         {
             Ok(records) => 
             {
@@ -349,6 +301,11 @@ fn main()
                     bodies_vector[n].position[0] = record.x;
                     bodies_vector[n].position[1] = record.y;
                     bodies_vector[n].position[2] = record.z;
+                    
+                    //Scale the body 
+                    bodies_vector[n].scale[0] = record.radius;
+                    bodies_vector[n].scale[1] = record.radius;
+                    bodies_vector[n].scale[2] = record.radius;
 
                     n += 1;
                 }
@@ -485,7 +442,7 @@ fn main()
                 t += 1;
                 let path = format!("../Secuencial_Ingenuo/Demo_Python/data/{}.csv", t);
                 //If it does not exist end simulation
-                if file_exists(&path) == false
+                if util::file_exists(&path) == false
                 {   
                     //Give signal to close
                     *should_close_clone.lock().unwrap() = true;     
@@ -493,7 +450,7 @@ fn main()
                 }
                 //Read new positions of bodies to animate
                 let mut i = 0;
-                match read_running_data_csv(&path) 
+                match util::read_running_data_csv(&path) 
                 {
                     Ok(records) => 
                     {
@@ -503,7 +460,7 @@ fn main()
                             //Put body in the correct place
                             bodies_vector[i].position[0] = record.x;
                             bodies_vector[i].position[1] = record.y;
-                            bodies_vector[i].position[2] = record.y;
+                            bodies_vector[i].position[2] = record.z;
 
                             i += 1;
             
