@@ -3,10 +3,7 @@
 
 #include "../inc/simulation.h"
 
-#define G 1
-#define dt 0.01
-#define speed 0.05
-#define softening 0.1
+
 
 int main(int argc, char **argv )
 {   
@@ -19,6 +16,9 @@ int main(int argc, char **argv )
 
     //Create simulation from starting file
     Simulation *simulation = load_bodies(argv[2]);    
-    print_simulation_values(simulation);
+    //Run simulation for T seconds
+    run_simulation(simulation, strtod(argv[1], NULL));
+
+    //Free memory
     free_simulation(simulation);
 }
