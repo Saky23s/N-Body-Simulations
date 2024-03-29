@@ -30,9 +30,6 @@ Simulation* load_bodies(char* filepath)
  * This funtion creates a new Simulation and fills it using the starting values from a file
  * @param filepath (char*):  a path to the file with the starting data (CURRENTLY ONLY CSV FILES)
  * @return simulation (Simulation*): a pointer to the new Simulation filled with the data in filepath
- * 
- * 
- * @todo TODOOOOOOOO ADD SUPPORT FOR BINARY FILES
  */
 {   
     //Allocate memory for the Simulation object itself
