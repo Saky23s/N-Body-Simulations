@@ -291,7 +291,7 @@ fn main()
         
         let mut t = 1;
         //Read body files
-        let path = "../Secuencial_Ingenuo/Demo_Python/starting_config/bodies.csv";
+        let path = "../Starting_Configurations/csv_files/ocho.csv";
         let mut n = 0;
         
         match util::read_starting_data_csv(path) 

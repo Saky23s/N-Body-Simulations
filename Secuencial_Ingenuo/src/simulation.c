@@ -3,6 +3,7 @@
 #include <math.h>
 #include<unistd.h>
 #include <time.h>
+#include <string.h>
 #include "../inc/simulation.h"
 
 
@@ -13,7 +14,13 @@ int count_lines_csv(FILE* f);
 void save_values_csv(Simulation* simulation, char* filename);
 void rk4(Simulation* simulation);
 double* calculate_acceleration(Simulation* simulation, double*values);
-
+int get_extention_type(const char *filename);
+//Helper macrowords
+#ifndef NO_EXT
+  #define NO_EXT -1
+  #define EXT_CSV 0
+  #define EXT_BIN 1
+#endif
 
 // Convert 'struct timeval' into seconds in double prec. floating point
 #define WALLTIME(t) ((double)(t).tv_sec + 1e-6 * (double)(t).tv_usec)
@@ -37,54 +44,118 @@ Simulation* load_bodies(char* filepath)
         return NULL;
     }
     
-    //Open file
-    FILE* f = NULL;
-    f = fopen(filepath, "r");
-    if(f == NULL)
-    {
-        return NULL;
-    }
-
-    //Get the number of bodies by the number of lines minus the header
-    simulation->n = count_lines_csv(f) - 1;
-    if(simulation->n <= 0)
-    {
-        return NULL;
-    }
-
-    //Memory allocation for the arrays
-    simulation->masses = (double*) malloc (simulation->n * sizeof(simulation->masses[0]));
-    simulation->bodies = (double*) malloc ((simulation->n * 6)*sizeof(simulation->bodies[0]));
-    simulation->k1 = (double*) malloc ((simulation->n * 6)*sizeof(simulation->k1[0]));
-    simulation->k2 = (double*) malloc ((simulation->n * 6)*sizeof(simulation->k2[0]));
-    simulation->k3 = (double*) malloc ((simulation->n * 6)*sizeof(simulation->k3[0]));
-    simulation->k4 = (double*) malloc ((simulation->n * 6)*sizeof(simulation->k4[0]));
-    simulation->holder = (double*) malloc ((simulation->n * 6)*sizeof(simulation->holder[0]));
     
-    if(simulation->bodies == NULL || simulation->masses == NULL || simulation->k1 == NULL || simulation->k2 == NULL || simulation->k3 == NULL || simulation->k4 == NULL || simulation->holder == NULL)
+    int extention_type = get_extention_type(filepath);
+    if(extention_type == EXT_CSV)
+    {   
+        //Open file
+        FILE* f = NULL;
+        f = fopen(filepath, "r");
+        if(f == NULL)
+        {
+            return NULL;
+        }
+
+        //Get the number of bodies by the number of lines minus the header
+        simulation->n = count_lines_csv(f) - 1;
+        if(simulation->n <= 0)
+        {
+            return NULL;
+        }
+
+        //Memory allocation for the arrays
+        simulation->masses = (double*) malloc (simulation->n * sizeof(simulation->masses[0]));
+        simulation->bodies = (double*) malloc ((simulation->n * 6)*sizeof(simulation->bodies[0]));
+        simulation->k1 = (double*) malloc ((simulation->n * 6)*sizeof(simulation->k1[0]));
+        simulation->k2 = (double*) malloc ((simulation->n * 6)*sizeof(simulation->k2[0]));
+        simulation->k3 = (double*) malloc ((simulation->n * 6)*sizeof(simulation->k3[0]));
+        simulation->k4 = (double*) malloc ((simulation->n * 6)*sizeof(simulation->k4[0]));
+        simulation->holder = (double*) malloc ((simulation->n * 6)*sizeof(simulation->holder[0]));
+        
+        if(simulation->bodies == NULL || simulation->masses == NULL || simulation->k1 == NULL || simulation->k2 == NULL || simulation->k3 == NULL || simulation->k4 == NULL || simulation->holder == NULL)
+        {
+            return NULL;
+        }
+
+        //go back to the begining of file
+        rewind(f);
+        //For the number of bodies + header
+        for(int i = 0; i < simulation->n + 1; i++)
+        {   
+            int j = i - 1;
+            int joffset = j*6;
+            //read header
+            if(i == 0)
+            {   
+                //skip header line
+                fscanf(f, "%*[^\n]\n");
+                continue;
+            }
+            
+            fscanf(f, "%lf,%lf,%lf,%lf,%lf,%lf,%lf,%*f\n", &simulation->bodies[joffset], &simulation->bodies[joffset+1], &simulation->bodies[joffset+2], &simulation->masses[j], &simulation->bodies[joffset+3], &simulation->bodies[joffset+4], &(simulation->bodies[joffset+5]));
+        }
+        //close file
+        fclose(f);
+    }
+    else if (extention_type == EXT_BIN)
+    {
+        //Read as binary
+        FILE* f = fopen(filepath, "rb");
+        if(f == NULL)
+        {
+            return NULL;
+        }
+
+        //Get file size
+        fseek(f, 0, SEEK_END); 
+        long size = ftell(f); 
+        fseek(f, 0, SEEK_SET);
+
+        //The number of bodies is the size of the file / size of each body
+        simulation->n = size / (sizeof(double) * 8); 
+
+        //Memory allocation for the arrays
+        simulation->masses = (double*) malloc (simulation->n * sizeof(simulation->masses[0]));
+        simulation->bodies = (double*) malloc ((simulation->n * 6)*sizeof(simulation->bodies[0]));
+        simulation->k1 = (double*) malloc ((simulation->n * 6)*sizeof(simulation->k1[0]));
+        simulation->k2 = (double*) malloc ((simulation->n * 6)*sizeof(simulation->k2[0]));
+        simulation->k3 = (double*) malloc ((simulation->n * 6)*sizeof(simulation->k3[0]));
+        simulation->k4 = (double*) malloc ((simulation->n * 6)*sizeof(simulation->k4[0]));
+        simulation->holder = (double*) malloc ((simulation->n * 6)*sizeof(simulation->holder[0]));
+        
+        if(simulation->bodies == NULL || simulation->masses == NULL || simulation->k1 == NULL || simulation->k2 == NULL || simulation->k3 == NULL || simulation->k4 == NULL || simulation->holder == NULL)
+        {
+            return NULL;
+        }
+
+        //Buffer for one body
+        double buffer[8];
+        //Read the whole file
+        for (int i = 0; i < simulation->n; i++)
+        {   
+            int ioffset = i * 6;
+            fread(buffer,sizeof(buffer),1,f);
+
+            simulation->bodies[ioffset] = buffer[0];    //x
+            simulation->bodies[ioffset+1] = buffer[1];    //y  
+            simulation->bodies[ioffset+2] = buffer[2];    //z
+            simulation->bodies[ioffset+3] = buffer[4];    //vx
+            simulation->bodies[ioffset+4] = buffer[5];    //vy
+            simulation->bodies[ioffset+5] = buffer[6];    //vz
+
+            simulation->masses[i] = buffer[3];         //mass
+
+            //Buffer[7] is radius, currently useless for data, only usefull for graphics
+        }
+        fclose(f);
+        
+    }
+    else
     {
         return NULL;
     }
-
-    //go back to the begining of file
-    rewind(f);
-    //For the number of bodies + header
-    for(int i = 0; i < simulation->n + 1; i++)
-    {   
-        int j = i - 1;
-        int joffset = j*6;
-        //read header
-        if(i == 0)
-        {   
-            //skip header line
-            fscanf(f, "%*[^\n]\n");
-            continue;
-        }
-        
-        fscanf(f, "%lf,%lf,%lf,%lf,%lf,%lf,%lf,%*f\n", &simulation->bodies[joffset], &simulation->bodies[joffset+1], &simulation->bodies[joffset+2], &simulation->masses[j], &simulation->bodies[joffset+3], &simulation->bodies[joffset+4], &(simulation->bodies[joffset+5]));
-    }
-    //close file
-    fclose(f);
+    
+    
 
     //Return simulation
     return simulation;
@@ -372,4 +443,28 @@ void save_values_csv(Simulation* simulation, char* filename)
     }
 
     fclose(f);
+}
+
+int get_extention_type(const char *filename) 
+/**
+ * This funtion will check if a filename is csv, bin or other extention type
+ * @param filename (char *):  the filename we are checking
+ * @param file_type(int): 
+ *                          -1 (NO_EXT) extention not valid
+ *                           0 (EXT_CSV) csv file
+ *                           1 (EXT_BIN) bin file
+ */
+{
+    const char *dot = strrchr(filename, '.');
+    //No extention
+    if(!dot || dot == filename) return NO_EXT;
+
+    //If extention is csv
+    if(strcmp(dot + 1, "csv") == 0) return EXT_CSV;
+
+    //If extention is bin
+    if(strcmp(dot + 1, "bin") == 0) return EXT_BIN;
+
+    //Extention not recognised
+    return NO_EXT;
 }
