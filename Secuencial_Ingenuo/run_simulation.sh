@@ -7,10 +7,11 @@ if [ "$#" -ne 2 ]; then
 fi
 
 #Delete old data
-if [ -d ../Graphics/data ]; then
-  rm -rf ../Graphics/data
+if [ -d ../../Graphics/data ]; then
+  rm -f ../../Graphics/data/*.csv
+else
+  mkdir ../../Graphics/data
 fi
-mkdir ../Graphics/data
 
 #Create starting configuration data
 cd ../Starting_Configurations

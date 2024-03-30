@@ -8,9 +8,11 @@ fi
 
 #Delete old data
 if [ -d ../../Graphics/data ]; then
-  rm -rf ../../Graphics/data
+  rm -f ../../Graphics/data/*.csv
+else
+  mkdir ../../Graphics/data
 fi
-mkdir ../../Graphics/data
+
 
 #Create starting configuration data
 filepath="$2"
