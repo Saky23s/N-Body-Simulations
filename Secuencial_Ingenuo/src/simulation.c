@@ -200,7 +200,7 @@ void run_simulation(Simulation* simulation, double T)
         {   
             FILE* f = NULL;
             
-            sprintf(filename, "Demo_Python/data/%ld.csv", file_number);
+            sprintf(filename, "../Graphics/data/%ld.csv", file_number);
             
             //TODOOOOOO ADD SUPORT TO SAVE AS BINARY
 

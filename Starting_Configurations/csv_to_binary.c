@@ -2,19 +2,24 @@
 #include <stdlib.h>
 
 int main(int argc, char **argv )
+/**
+ * This file is a small script to turn csv files into binary.
+*/
 {   
+    //Check arguments
     if(argc < 3)
     {
         printf("Usage: ./csv_to_binary [input] [output]\n");
         return -1;
     }
+    //Read
     FILE* input_file = fopen(argv[1], "r");
     if(input_file == NULL)
     {   
         printf("Error opening input file %s\n", argv[1]);
         return -1;
     }
-
+    //Write
     FILE* output_file = fopen(argv[2], "wb");
     if(output_file == NULL)
     {
@@ -29,7 +34,7 @@ int main(int argc, char **argv )
     //Read the whole file
     while(!feof(input_file))
     {   
-        //read header
+        //skip header
         if(header == 0)
         {   
             //skip header line

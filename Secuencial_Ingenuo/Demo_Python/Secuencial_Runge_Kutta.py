@@ -41,7 +41,7 @@ class Simulation():
             
             #Save data if we must
             if(step % save_step == 0):
-                f = open(f"data/{file_number}.csv", "w")
+                f = open(f"../../Graphics/data/{file_number}.csv", "w")
                 for i in range(self.n):
                     ioffset = i * 6
                     f.write(f"{self.bodies[ioffset]},{self.bodies[ioffset+1]},{self.bodies[ioffset+2]}\n")

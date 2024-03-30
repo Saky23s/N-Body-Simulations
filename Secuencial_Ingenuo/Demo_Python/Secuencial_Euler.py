@@ -113,7 +113,7 @@ class Simulation():
 
             #Save data if we must
             if(step % save_step == 0):
-                f = open(f"data/{file_number}.csv", "w")
+                f = open(f"../../Graphics/data/{file_number}.csv", "w")
                 for i in range(self.n):
                     f.write(f"{self.bodies[i].pos.x},{self.bodies[i].pos.y},{self.bodies[i].pos.z}\n")
                 f.close()

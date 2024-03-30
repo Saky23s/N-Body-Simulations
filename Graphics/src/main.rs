@@ -291,7 +291,7 @@ fn main()
         
         let mut t = 1;
         //Read body files
-        let path = "../Starting_Configurations/csv_files/ocho.csv";
+        let path = "./data/starting_positions.csv";
         let mut n = 0;
         
         match util::read_starting_data_csv(path) 
@@ -451,7 +451,7 @@ fn main()
                 //Change the animation values
                 //If the next data file exists
                 t += 1;
-                let path = format!("../Secuencial_Ingenuo/Demo_Python/data/{}.csv", t);
+                let path = format!("./data/{}.csv", t);
                 //If it does not exist end simulation
                 if util::file_exists(&path) == false
                 {   

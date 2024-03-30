@@ -1,10 +1,28 @@
 #!/bin/bash 
 
-if [ -d data ]; then
-  rm -rf data
+# Check if exactly two parameters are provided
+if [ "$#" -ne 2 ]; then
+    echo "Usage: $0 <T> <Filepath>"
+    exit 1
 fi
-mkdir data
+
+#Delete old data
+if [ -d ../../Graphics/data ]; then
+  rm -rf ../../Graphics/data
+fi
+mkdir ../../Graphics/data
+
+#Create starting configuration data
+filepath="$2"
+cd ../../Starting_Configurations
+make >/dev/null
+./graphic_starting_position ${filepath:3}  
+
+#Run simulation
+cd ../Secuencial_Ingenuo/Demo_Python/
 python3 Secuencial_Runge_Kutta.py $1 $2
+
+#Run Graphics
 cd ../../Graphics/
 cargo run
 cd ../Secuencial_Ingenuo/Demo_Python
