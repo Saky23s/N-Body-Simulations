@@ -131,28 +131,52 @@ pub fn read_running_data_bin(path: &str) -> Result<Vec<RunningBodyData>, Box<dyn
         ).into());
     }
 
-    for chunk in buffer.chunks_exact(3 * std::mem::size_of::<f64>()) 
+    if cfg!(target_endian = "little")
     {
-        let mut x_bytes = [0; 8];
-        x_bytes.copy_from_slice(&chunk[0..8]);
-        let x = f64::from_le_bytes(x_bytes) as f32; //Read as doubles save as f32. 
+        for chunk in buffer.chunks_exact(3 * std::mem::size_of::<f64>()) 
+        {
+            let mut x_bytes = [0; 8];
+            x_bytes.copy_from_slice(&chunk[0..8]);
+            let x = f64::from_le_bytes(x_bytes) as f32; //Read as doubles save as f32. 
 
-        let mut y_bytes = [0; 8];
-        y_bytes.copy_from_slice(&chunk[8..16]);
-        let y = f64::from_le_bytes(y_bytes) as f32;
+            let mut y_bytes = [0; 8];
+            y_bytes.copy_from_slice(&chunk[8..16]);
+            let y = f64::from_le_bytes(y_bytes) as f32;
 
-        let mut z_bytes = [0; 8];
-        z_bytes.copy_from_slice(&chunk[16..24]);
-        let z = f64::from_le_bytes(z_bytes) as f32;
+            let mut z_bytes = [0; 8];
+            z_bytes.copy_from_slice(&chunk[16..24]);
+            let z = f64::from_le_bytes(z_bytes) as f32;
 
-        records.push(RunningBodyData { x, y, z });
+            records.push(RunningBodyData { x, y, z });
+        }
     }
+    else
+    {
+        for chunk in buffer.chunks_exact(3 * std::mem::size_of::<f64>()) 
+        {
+            let mut x_bytes = [0; 8];
+            x_bytes.copy_from_slice(&chunk[0..8]);
+            let x = f64::from_be_bytes(x_bytes) as f32; //Read as doubles save as f32. 
+
+            let mut y_bytes = [0; 8];
+            y_bytes.copy_from_slice(&chunk[8..16]);
+            let y = f64::from_be_bytes(y_bytes) as f32;
+
+            let mut z_bytes = [0; 8];
+            z_bytes.copy_from_slice(&chunk[16..24]);
+            let z = f64::from_be_bytes(z_bytes) as f32;
+
+            records.push(RunningBodyData { x, y, z });
+        }
+    }
+    
     Ok(records)
 }
 
-//Funtion to read the starting data of all the bodies from a bin file. BIN FILE MUST BE LITTLE INDIAN MAYBE CHANGE THIS IN THE FUTURE!
+//Funtion to read the starting data of all the bodies from a bin file. 
 pub fn read_starting_data_bin(path: &str) -> Result<Vec<StartingBodyData>, Box<dyn Error>> 
-{
+{   
+
     // Opens the bin file
     let mut file = File::open(path)?;
 
@@ -172,25 +196,53 @@ pub fn read_starting_data_bin(path: &str) -> Result<Vec<StartingBodyData>, Box<d
         ).into());
     }
 
-    for chunk in buffer.chunks_exact(4 * std::mem::size_of::<f64>()) 
+    //Binary in little endian
+    if cfg!(target_endian = "little")
     {
-        let mut x_bytes = [0; 8];
-        x_bytes.copy_from_slice(&chunk[0..8]);
-        let x = f64::from_le_bytes(x_bytes) as f32; //Read as doubles save as f32. 
-
-        let mut y_bytes = [0; 8];
-        y_bytes.copy_from_slice(&chunk[8..16]);
-        let y = f64::from_le_bytes(y_bytes) as f32;
-
-        let mut z_bytes = [0; 8];
-        z_bytes.copy_from_slice(&chunk[16..24]);
-        let z = f64::from_le_bytes(z_bytes) as f32;
-
-        let mut r_bytes = [0; 8];
-        r_bytes.copy_from_slice(&chunk[24..32]);
-        let radius = f64::from_le_bytes(r_bytes) as f32;
-
-        records.push(StartingBodyData { x, y, z, radius });
+        for chunk in buffer.chunks_exact(4 * std::mem::size_of::<f64>()) 
+        {
+            let mut x_bytes = [0; 8];
+            x_bytes.copy_from_slice(&chunk[0..8]);
+            let x = f64::from_le_bytes(x_bytes) as f32; //Read as doubles save as f32. 
+    
+            let mut y_bytes = [0; 8];
+            y_bytes.copy_from_slice(&chunk[8..16]);
+            let y = f64::from_le_bytes(y_bytes) as f32;
+    
+            let mut z_bytes = [0; 8];
+            z_bytes.copy_from_slice(&chunk[16..24]);
+            let z = f64::from_le_bytes(z_bytes) as f32;
+    
+            let mut r_bytes = [0; 8];
+            r_bytes.copy_from_slice(&chunk[24..32]);
+            let radius = f64::from_le_bytes(r_bytes) as f32;
+    
+            records.push(StartingBodyData { x, y, z, radius });
+        }
+    }
+    //Binary in big endian
+    else
+    {   
+        for chunk in buffer.chunks_exact(4 * std::mem::size_of::<f64>()) 
+        {
+            let mut x_bytes = [0; 8];
+            x_bytes.copy_from_slice(&chunk[0..8]);
+            let x = f64::from_be_bytes(x_bytes) as f32; //Read as doubles save as f32. 
+    
+            let mut y_bytes = [0; 8];
+            y_bytes.copy_from_slice(&chunk[8..16]);
+            let y = f64::from_be_bytes(y_bytes) as f32;
+    
+            let mut z_bytes = [0; 8];
+            z_bytes.copy_from_slice(&chunk[16..24]);
+            let z = f64::from_be_bytes(z_bytes) as f32;
+    
+            let mut r_bytes = [0; 8];
+            r_bytes.copy_from_slice(&chunk[24..32]);
+            let radius = f64::from_be_bytes(r_bytes) as f32;
+    
+            records.push(StartingBodyData { x, y, z, radius });
+        }
     }
     Ok(records)
 }
