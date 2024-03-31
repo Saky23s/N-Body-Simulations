@@ -16,6 +16,12 @@ int main(int argc, char **argv )
 
     //Create simulation from starting file
     Simulation *simulation = load_bodies(argv[2]);    
+    if(simulation == NULL)
+    {   
+        printf("Error while loading simulation\n");
+        return -1;
+    }
+    
     //Run simulation for T seconds
     run_simulation(simulation, strtod(argv[1], NULL));
 

@@ -21,6 +21,7 @@ make >/dev/null
 
 #Run simulation
 cd ../Secuencial_Ingenuo/
+rm main >/dev/null
 make >/dev/null
 ./main $1 $2
 

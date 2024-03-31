@@ -316,7 +316,6 @@ double* calculate_acceleration(Simulation* simulation, double*k)
             
             double r = sqrt(pow(dx, 2.0) + pow(dy, 2.0) + pow(dz, 2.0) + pow(softening, 2.0)); //distance magnitud with some softening
             
-
             k[ioffset+3] += dt * (G * simulation->masses[j] / pow(r,3.0)) * dx; //Acceleration formula for x
             k[ioffset+4] += dt * (G * simulation->masses[j] / pow(r,3.0)) * dy; //Acceleration formula for y
             k[ioffset+5] += dt * (G * simulation->masses[j] / pow(r,3.0)) * dz; //Acceleration formula for z
