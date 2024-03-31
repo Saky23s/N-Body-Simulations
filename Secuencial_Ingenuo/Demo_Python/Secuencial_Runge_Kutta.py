@@ -3,6 +3,7 @@ import csv
 import sys
 import time
 import numpy as np
+import struct
 
 G = 1
 dt = 0.01
@@ -40,12 +41,14 @@ class Simulation():
             self.rk4()
             
             #Save data if we must
-            if(step % save_step == 0):
-                f = open(f"../../Graphics/data/{file_number}.csv", "w")
-                for i in range(self.n):
-                    ioffset = i * 6
-                    f.write(f"{self.bodies[ioffset]},{self.bodies[ioffset+1]},{self.bodies[ioffset+2]}\n")
-                f.close()
+            if step % save_step == 0:
+                with open(f"../../Graphics/data/{file_number}.bin", "wb") as f:
+                    for i in range(self.n):
+                        ioffset = i * 6
+                        x = self.bodies[ioffset]
+                        y = self.bodies[ioffset + 1]
+                        z = self.bodies[ioffset + 2]
+                        f.write(struct.pack('ddd', x, y, z))
                 file_number += 1
             
             #Print information of time integrating

@@ -1,3 +1,4 @@
+import struct
 import time
 import numpy as np
 import csv
@@ -111,12 +112,11 @@ class Simulation():
             for i in range(self.n):
                 self.bodies[i].move()
 
-            #Save data if we must
-            if(step % save_step == 0):
-                f = open(f"../../Graphics/data/{file_number}.csv", "w")
-                for i in range(self.n):
-                    f.write(f"{self.bodies[i].pos.x},{self.bodies[i].pos.y},{self.bodies[i].pos.z}\n")
-                f.close()
+            #Save data if we must            
+            if step % save_step == 0:
+                with open(f"../../Graphics/data/{file_number}.bin", "wb") as f:
+                    for i in range(self.n):
+                        f.write(struct.pack('ddd', self.bodies[i].pos.x, self.bodies[i].pos.y, self.bodies[i].pos.z))
                 file_number += 1
             
             #Print information of time integrating
