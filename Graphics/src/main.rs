@@ -291,16 +291,16 @@ fn main()
         
         let mut t = 1;
         //Read body files
-        let path = "./data/starting_positions.csv";
+        let path = "./data/starting_positions.bin";
         let mut n = 0;
         
-        match util::read_starting_data_csv(path) 
+        match util::read_starting_data_bin(path) 
         {
             Ok(records) => 
             {
                 // Process the records here
                 for record in records 
-                {
+                {   
                     //Create
                     bodies_vector.push(SceneNode::from_vao(bodies_vaos[n % n_colors], bodies[n % n_colors].index_count));
                     bodies_vector[n].calculate_reference_point(&bodies[n % n_colors].vertices);
@@ -355,6 +355,7 @@ fn main()
             let now = std::time::Instant::now();
             let elapsed = now.duration_since(first_frame_time).as_secs_f32();
             //If it has not been 1/24 of a second dont show next frame
+            //TODO FIX THIS! THIS IS ACTIVE WAIT!
             if now.duration_since(prevous_frame_time).as_secs_f32() < (1.0 / 24.0) as f32 
             {
                 continue
@@ -451,7 +452,7 @@ fn main()
                 //Change the animation values
                 //If the next data file exists
                 t += 1;
-                let path = format!("./data/{}.csv", t);
+                let path = format!("./data/{}.bin", t);
                 //If it does not exist end simulation
                 if util::file_exists(&path) == false
                 {   
@@ -461,7 +462,7 @@ fn main()
                 }
                 //Read new positions of bodies to animate
                 let mut i = 0;
-                match util::read_running_data_csv(&path) 
+                match util::read_running_data_bin(&path) 
                 {
                     Ok(records) => 
                     {

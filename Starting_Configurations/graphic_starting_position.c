@@ -35,18 +35,18 @@ int main(int argc, char **argv )
             return -1;
         }
 
-        FILE* output_file = fopen("../Graphics/data/starting_positions.csv", "w");
+        FILE* output_file = fopen("../Graphics/data/starting_positions.bin", "w");
         if(output_file == NULL)
         {
-            printf("Error opening output file ../Graphics/data/starting_positions.csv\n");
+            printf("Error opening output file ../Graphics/data/starting_positions.bin\n");
             return -1;
         }
 
         int header = 0;
         //Array to store values
         double values[8];
+        double buffer[4];
 
-        fprintf(output_file, "x,y,z,radius\n");
 
         //Read the whole file
         while(!feof(input_file))
@@ -63,8 +63,13 @@ int main(int argc, char **argv )
             //Read values from csv
             fscanf(input_file, "%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf\n", &values[0], &values[1], &values[2], &values[3], &values[4], &values[5], &values[6], &values[7]);
 
+            buffer[0] = values[0]; //x
+            buffer[1] = values[1]; //y
+            buffer[2] = values[2]; //z
+            buffer[3] = values[7]; //radius
+
             //Write values to bin file
-            fprintf(output_file, "%lf,%lf,%lf,%lf\n", values[0], values[1], values[2], values[7]);
+            fwrite(buffer, sizeof(buffer), 1, output_file);
         }
         //close files
         fclose(input_file);
@@ -80,18 +85,16 @@ int main(int argc, char **argv )
             return -1;
         }
 
-        FILE* output_file = fopen("../Graphics/data/starting_positions.csv", "w");
+        FILE* output_file = fopen("../Graphics/data/starting_positions.bin", "wb");
         if(output_file == NULL)
         {
-            printf("Error opening output file ../Graphics/data/starting_positions.csv\n");
+            printf("Error opening output file ../Graphics/data/starting_positions.bin\n");
             return -1;
         }
 
-        int header = 0;
         //Array to store values
         double values[8];
-
-        fprintf(output_file, "x,y,z,radius\n");
+        double buffer[4];
         //Read the whole file
         while(!feof(input_file))
         {   
@@ -99,9 +102,14 @@ int main(int argc, char **argv )
             //Read values from csv
             if(fread(values, sizeof(values), 1, input_file) == 0)
                 break;
+            
+            buffer[0] = values[0]; //x
+            buffer[1] = values[1]; //y
+            buffer[2] = values[2]; //z
+            buffer[3] = values[7]; //radius
 
             //Write values to bin file
-            fprintf(output_file, "%lf,%lf,%lf,%lf\n", values[0], values[1], values[2], values[7]);
+            fwrite(buffer, sizeof(buffer), 1, output_file);
         }
         //close files
         fclose(input_file);

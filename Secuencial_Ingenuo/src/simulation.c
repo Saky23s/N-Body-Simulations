@@ -9,12 +9,14 @@
 
 #define BUF_SIZE 65536
 
-//Little internal helpers
+//Internal helpers
 int count_lines_csv(FILE* f);
 void save_values_csv(Simulation* simulation, char* filename);
 void rk4(Simulation* simulation);
 double* calculate_acceleration(Simulation* simulation, double*values);
 int get_extention_type(const char *filename);
+void save_values_bin(Simulation* simulation, char* filename);
+
 //Helper macrowords
 #ifndef NO_EXT
   #define NO_EXT -1
@@ -28,7 +30,7 @@ int get_extention_type(const char *filename);
 Simulation* load_bodies(char* filepath)
 /**
  * This funtion creates a new Simulation and fills it using the starting values from a file
- * @param filepath (char*):  a path to the file with the starting data (CURRENTLY ONLY CSV FILES)
+ * @param filepath (char*):  a path to the file with the starting data, must be csv or bin file
  * @return simulation (Simulation*): a pointer to the new Simulation filled with the data in filepath
  */
 {   
@@ -133,7 +135,7 @@ Simulation* load_bodies(char* filepath)
             int ioffset = i * 6;
             fread(buffer,sizeof(buffer),1,f);
 
-            simulation->bodies[ioffset] = buffer[0];    //x
+            simulation->bodies[ioffset] = buffer[0];      //x
             simulation->bodies[ioffset+1] = buffer[1];    //y  
             simulation->bodies[ioffset+2] = buffer[2];    //z
             simulation->bodies[ioffset+3] = buffer[4];    //vx
@@ -142,7 +144,7 @@ Simulation* load_bodies(char* filepath)
 
             simulation->masses[i] = buffer[3];         //mass
 
-            //Buffer[7] is radius, currently useless for data, only usefull for graphics
+            //Buffer[7] is radius, currently useless for data, only useful for graphics
         }
         fclose(f);
         
@@ -152,8 +154,6 @@ Simulation* load_bodies(char* filepath)
         return NULL;
     }
     
-    
-
     //Return simulation
     return simulation;
 }
@@ -200,11 +200,9 @@ void run_simulation(Simulation* simulation, double T)
         {   
             FILE* f = NULL;
             
-            sprintf(filename, "../Graphics/data/%ld.csv", file_number);
+            sprintf(filename, "../Graphics/data/%ld.bin", file_number);
+            save_values_bin(simulation, filename);
             
-            //TODOOOOOO ADD SUPORT TO SAVE AS BINARY
-
-            save_values_csv(simulation, filename);
             file_number++;
         }
 
@@ -437,6 +435,40 @@ void save_values_csv(Simulation* simulation, char* filename)
         //Print body as csv x,y,z
         int ioffset = i*6;
         fprintf(f, "%lf,%lf,%lf\n", simulation->bodies[ioffset], simulation->bodies[ioffset+1], simulation->bodies[ioffset+2]);
+    }
+
+    fclose(f);
+}
+
+void save_values_bin(Simulation* simulation, char* filename)
+/**
+ * This funtion will print to the file f the current positions of all the bodies in the simulation as a bin
+ * @param simulation (Simulation*):  a pointer to the simulation being stored
+ * @param file (char*) the filepath in which the data is going to be stored as bin
+ */
+{   
+    //Error checking
+    if(simulation == NULL || filename == NULL)
+        return;
+
+    //Open file
+    FILE* f = fopen(filename, "wb");
+    if(f == NULL)
+        return;
+
+    double buffer[3];
+
+    //For all n bodies
+    for(int i = 0; i < simulation->n; i++)
+    {      
+        int ioffset = i*6;
+
+        buffer[0] = simulation->bodies[ioffset];
+        buffer[1] = simulation->bodies[ioffset+1];
+        buffer[2] =  simulation->bodies[ioffset+2];
+        
+        //write body as bin x,y,z
+        fwrite(buffer, sizeof(buffer), 1, f);
     }
 
     fclose(f);
