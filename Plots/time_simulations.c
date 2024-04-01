@@ -7,6 +7,20 @@
 double random_num(double min, double max);
 
 int main(int argc, char **argv)
+/**
+ * Small code to generete a log file with the times
+ * it takes to simulation to execute a 100 second simulation 
+ * with diferent number of bodies
+ * @param Max_N (long): The maximum size of N to test
+ * @param steps (int): The increment between timing
+ * @return 'times.log' will have all the results stored at the end
+ * of the excution, in format:
+ * 
+ * n t
+ * 
+ * where N is the number of bodies that simulation had
+ * and t is the time it took to excute
+*/
 {
     if(argc != 3)
     {

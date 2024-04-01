@@ -11,4 +11,4 @@ make >/dev/null
 ./time_simulations $1 $2
 
 #plot results
-gnuplot load 'times.p'
+gnuplot> load 'times.p'
