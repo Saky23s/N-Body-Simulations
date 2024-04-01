@@ -158,7 +158,7 @@ Simulation* load_bodies(char* filepath)
     return simulation;
 }
 
-void run_simulation(Simulation* simulation, double T)
+double run_simulation(Simulation* simulation, double T)
 /**
  * Funtion that will run the simulation for T internal seconds (this means that the ending positions of the bodies will be in time T)
  *
@@ -166,7 +166,9 @@ void run_simulation(Simulation* simulation, double T)
  * and store them in data/ as csv files every 'speed' seconds
  * 
  * @param simulation (Simulation*) pointer to the simulation object with the initial values       
- * @param T (float): Internal ending time of the simulation
+ * @param T (double): Internal ending time of the simulation
+ * 
+ * @return t (double): Real time that the simulation was running
 **/
 {   
     //Calculate the number of steps we will have to take to get to T
@@ -186,7 +188,7 @@ void run_simulation(Simulation* simulation, double T)
     start = clock();
     if(start == (clock_t)-1)
     {
-      return;
+      return -1;
     }
 
     //Run simulation
@@ -216,14 +218,14 @@ void run_simulation(Simulation* simulation, double T)
     final = clock();
     if(final == (clock_t)-1)
     {
-      return;
+      return -1;
     }
 
     //Calculate how long the simulation took
     cycles = final - start;
     printf("\nSimulation completed in %lf seconds\n", (cycles/(double)CLOCKS_PER_SEC));
     free(filename);
-
+    return cycles/(double)CLOCKS_PER_SEC;
 }
 
 void rk4(Simulation* simulation)
@@ -314,11 +316,11 @@ double* calculate_acceleration(Simulation* simulation, double*k)
             double dy = simulation->holder[joffset+1] - simulation->holder[ioffset+1]; //ry body 2 - ry body 1
             double dz = simulation->holder[joffset+2] - simulation->holder[ioffset+2]; //rz body 2 - rz body 1
             
-            double r = sqrt(pow(dx, 2.0) + pow(dy, 2.0) + pow(dz, 2.0) + pow(softening, 2.0)); //distance magnitud with some softening
+            double r = pow(pow(dx, 2.0) + pow(dy, 2.0) + pow(dz, 2.0) + pow(softening, 2.0), 1.5); //distance magnitud with some softening
             
-            k[ioffset+3] += dt * (G * simulation->masses[j] / pow(r,3.0)) * dx; //Acceleration formula for x
-            k[ioffset+4] += dt * (G * simulation->masses[j] / pow(r,3.0)) * dy; //Acceleration formula for y
-            k[ioffset+5] += dt * (G * simulation->masses[j] / pow(r,3.0)) * dz; //Acceleration formula for z
+            k[ioffset+3] += dt * (G * simulation->masses[j] / r) * dx; //Acceleration formula for x
+            k[ioffset+4] += dt * (G * simulation->masses[j] / r) * dy; //Acceleration formula for y
+            k[ioffset+5] += dt * (G * simulation->masses[j] / r) * dz; //Acceleration formula for z
         }
     }
 }

@@ -24,7 +24,7 @@ int main(int argc, char **argv )
     
     //Run simulation for T seconds
     run_simulation(simulation, strtod(argv[1], NULL));
-
+    
     //Free memory
     free_simulation(simulation);
 }

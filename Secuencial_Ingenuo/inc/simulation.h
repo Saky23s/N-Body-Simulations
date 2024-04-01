@@ -22,4 +22,4 @@ typedef struct Simulation
 Simulation* load_bodies(char* filepath);
 void free_simulation(Simulation* simulation);
 void print_simulation_values(Simulation* simulation);
-void run_simulation(Simulation* simulation, double T);
+double run_simulation(Simulation* simulation, double T);
