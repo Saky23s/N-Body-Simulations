@@ -1,0 +1,6 @@
+.vscode/
+*.csv
+*.bin
+csv_to_binary
+graphic_starting_position
+random_n_bodies
