@@ -1,8 +1,7 @@
 CC:=gcc
 CFLAGS+=-std=c11 -fopenmp
 LDLIBS+=-lm -pthread
-LDLIBS+=-lm
 
-time_simulations: time_simulations.c ../Paralelo_Ingenuo/src/simulation_OpenMP.c
+SRC_FILES:=src/main.c src/simulation_OpenMP.c
+main: $(SRC_FILES)
 	$(CC) $^ $(CFLAGS) $(LDLIBS) -o $@ $(LDLIBS)
-

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "../Secuencial_Ingenuo/inc/simulation.h"
+#include "../Paralelo_Ingenuo/inc/simulation_OpenMP.h"
 
 double random_num(double min, double max);
 
@@ -34,7 +34,7 @@ int main(int argc, char **argv)
     if(output_file == NULL)
         return -1;
 
-    for(long n = 1.0; n <= max_n; n += step)
+    for(long n = 1; n <= max_n; n += step)
     {   
         //Create an starting position for N bodies
         FILE* position_file = fopen("../Starting_Configurations/bin_files/random.bin", "wb");
@@ -50,7 +50,7 @@ int main(int argc, char **argv)
             values[0] = random_num(-1.0, 1.0);  //x
             values[1] = random_num(-1.0, 1.0);  //y
             values[2] = random_num(-1.0, 1.0);  //z
-            values[3] = 1.0 / n;                //mass
+            values[3] = 1.0;                    //mass
             values[4] = random_num(-1.0, 1.0);  //vx
             values[5] = random_num(-1.0, 1.0);  //vy
             values[6] = random_num(-1.0, 1.0);  //vz
@@ -59,7 +59,8 @@ int main(int argc, char **argv)
             fwrite(values, sizeof(values), 1, position_file);
         }
         fclose(position_file);
-
+        
+        //Create a simulation for that file
         Simulation *simulation = load_bodies("../Starting_Configurations/bin_files/random.bin");    
         if(simulation == NULL)
         {   
@@ -70,14 +71,17 @@ int main(int argc, char **argv)
         //Run simulation for 100 seconds
         double t = run_simulation(simulation, 100.0);
         
+        //Store time
         fprintf(output_file, "%ld %lf\n", n, t);
 
+        //Free memory
         free(simulation);
     }
     fclose(output_file);
 }
 
 double random_num(double min, double max) 
-{
-    return min + (max-min + 1.0)*rand()/(RAND_MAX+1.0);
+{   
+    return min + (max + 1.0)*rand()/(RAND_MAX+1.0);
+    
 }
