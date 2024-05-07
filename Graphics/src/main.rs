@@ -11,7 +11,7 @@ use std::f32::consts::PI;
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 use std::{mem, os::raw::c_void, ptr};
-
+use std::time::Duration;
 
 mod shader;
 mod util;
@@ -351,19 +351,8 @@ fn main()
         loop 
         {
 
-            // Compute time passed since the previous frame and since the start of the program
-            let now = std::time::Instant::now();
-            let elapsed = now.duration_since(first_frame_time).as_secs_f32();
-            //If it has not been 1/24 of a second dont show next frame
-            //TODO FIX THIS! THIS IS ACTIVE WAIT!
-            if now.duration_since(prevous_frame_time).as_secs_f32() < (1.0 / 24.0) as f32 
-            {
-                continue
-            }
-
             //Delta time used for camera movements
-            let delta_time = now.duration_since(prevous_frame_time).as_secs_f32() * 10.0;
-            prevous_frame_time = now;
+            let delta_time = (1.0 / 24.0) as f32  * 10.0;
 
             // Handle resize events
             if let Ok(mut new_size) = window_size.lock() 
@@ -489,6 +478,17 @@ fn main()
                 unsafe { draw_scene(&root_node, &shaders, &transformation, &glm::identity()); }
             }
 
+            // Compute time passed since the previous frame and since the start of the program
+            let now = std::time::Instant::now();
+
+            //If it has not been 1/24 of a second dont show next frame
+            if now.duration_since(prevous_frame_time) < Duration::from_secs_f32(1.0 / 24.0)
+            {   
+                println!("Sleeping for {}\n", (Duration::from_secs_f32(1.0 / 24.0)  - now.duration_since(prevous_frame_time)).as_secs_f32() );
+                thread::sleep( Duration::from_secs_f32(1.0 / 24.0)  - now.duration_since(prevous_frame_time));
+            }
+
+            prevous_frame_time = now;
             // Display the new color buffer on the display
             context.swap_buffers().unwrap(); // we use "double buffering" to avoid artifacts
 

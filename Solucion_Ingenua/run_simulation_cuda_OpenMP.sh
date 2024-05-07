@@ -20,12 +20,12 @@ make >/dev/null
 ./graphic_starting_position $2
 
 #Run simulation
-cd ../Paralelo_Ingenuo/
-rm main >/dev/null
-make >/dev/null
-./main $1 $2
+cd ../Solucion_Ingenua/
+rm simulation_cuda_OpenMP >/dev/null
+make simulation_cuda_OpenMP >/dev/null
+./simulation_cuda_OpenMP $1 $2
 
 #Run Graphics
 cd ../Graphics/
 cargo run
-cd ../Paralelo_Ingenuo/
+cd ../Solucion_Ingenua/

@@ -1,41 +1,33 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
+#include <iostream>
+#include <fstream>
+#include <cstdlib>
+#include <ctime>
 
 #include "../Solucion_Ingenua/inc/simulation.h"
 
 double random_num(double min, double max);
 
 int main(int argc, char **argv)
-/**
- * Small code to generete a log file with the times
- * it takes to simulation to execute a 100 second simulation 
- * with diferent number of bodies
- * @param Max_N (long): The maximum size of N to test
- * @param steps (int): The increment between timing
- * @return 'times.log' will have all the results stored at the end
- * of the excution, in format:
- * 
- * n t
- * 
- * where N is the number of bodies that simulation had
- * and t is the time it took to excute
-*/
 {
     if(argc != 3)
     {
-        printf("Usage: %s <Max_N> <Steps>\n", argv[0]);
+        std::cout << "Usage: " << argv[0] << " <Max_N> <Steps>\n";
         return STATUS_ERROR;
     }
-    long max_n = atol(argv[1]);
-    int step = atoi(argv[2]);
+    long max_n = std::atol(argv[1]);
+    int step = std::atoi(argv[2]);
 
-    FILE* output_file = fopen("times.log", "w");
-    if(output_file == NULL)
+    std::ofstream output_file;
+    output_file.open("times.log");
+    if(!output_file)
+    {
+        std::cerr << "Error opening output file\n";
         return STATUS_ERROR;
+    }
 
     for(long n = 1; n <= max_n; n += step)
     {   
+        
         //Create an starting position for N bodies
         FILE* position_file = fopen("../Starting_Configurations/bin_files/random.bin", "wb");
         if(position_file == NULL)
@@ -60,28 +52,28 @@ int main(int argc, char **argv)
         }
         fclose(position_file);
         
-        //Create a simulation for that file
-        Simulation *simulation = load_bodies("../Starting_Configurations/bin_files/random.bin");    
-        if(simulation == NULL)
-        {   
-            printf("Error while loading simulation\n");
+        // Create a simulation for that file
+        Simulation *simulation = load_bodies("../Starting_Configurations/bin_files/random.bin");
+        if(simulation == nullptr) 
+        {
+            std::cout << "Error while loading simulation\n";
             return STATUS_ERROR;
         }
         
-        //Run simulation for 100 seconds
+        // Run simulation for 100 seconds
         double t = run_simulation(simulation, 100.0);
         
-        //Store time
-        fprintf(output_file, "%ld %lf\n", n, t);
+        // Store time
+        output_file << n << " " << t << "\n";
 
-        //Free memory
-        free(simulation);
+        // Free memory
+        free_simulation(simulation);
     }
-    fclose(output_file);
+    output_file.close();
     return STATUS_OK;
 }
 
 double random_num(double min, double max) 
 {   
-    return min + (max + 1.0)*rand()/(RAND_MAX+1.0);
+    return min + (max + 1.0) * std::rand() / (RAND_MAX + 1.0);
 }

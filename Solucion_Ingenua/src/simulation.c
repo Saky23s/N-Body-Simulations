@@ -1,34 +1,34 @@
-#define _POSIX_C_SOURCE 199309L 
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include<unistd.h>
 #include <time.h>
 #include <string.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include "../inc/simulation_OpenMP.h"
-#include <sys/wait.h>
 #include <sys/time.h>
-#define BUF_SIZE 65536
+#include "../inc/simulation.h"
+#include "aux.c"
+
+struct _Simulation
+{
+    double* bodies;
+    double* masses;
+    int n;
+
+    //Variable needed for internals
+    double* k1;
+    double* k2;
+    double* k3;
+    double* k4;
+    double* holder;
+} _Simulation;
+
+
 
 //Internal helpers
-int count_lines_csv(FILE* f);
-void save_values_csv(Simulation* simulation, char* filename);
-void rk4(Simulation* simulation);
-double* calculate_acceleration(Simulation* simulation, double*values);
-int get_extention_type(const char *filename);
-void save_values_bin(Simulation* simulation, char* filename);
-
-//Helper macrowords
-#ifndef NO_EXT
-  #define NO_EXT -1
-  #define EXT_CSV 0
-  #define EXT_BIN 1
-#endif
-
-// Convert 'struct timeval' into seconds in double prec. floating point
-#define WALLTIME(t) ((double)(t).tv_sec + 1e-6 * (double)(t).tv_usec)
+int save_values_csv(Simulation* simulation, char* filename);
+int rk4(Simulation* simulation);
+int save_values_bin(Simulation* simulation, char* filename);
+int calculate_acceleration(Simulation* simulation, double*k);
 
 Simulation* load_bodies(char* filepath)
 /**
@@ -39,12 +39,17 @@ Simulation* load_bodies(char* filepath)
 {   
     //Allocate memory for the Simulation object itself
     Simulation* simulation = (Simulation*) malloc(sizeof(Simulation));
-    
+    if(simulation == NULL)
+    {
+        return NULL;
+    }
+
     //Error checking
     if(filepath == NULL)
     {
         return NULL;
     }
+    
     
     int extention_type = get_extention_type(filepath);
     if(extention_type == EXT_CSV)
@@ -129,38 +134,27 @@ Simulation* load_bodies(char* filepath)
             return NULL;
         }
 
-        
-        //Big buffer
-        double buffer[BUF_SIZE];
+        //Buffer for one body
+        double buffer[8];
+        //Read the whole file
+        for (int i = 0; i < simulation->n; i++)
+        {   
+            int ioffset = i * 6;
+            fread(buffer,sizeof(buffer),1,f);
 
-        //Control variables
-        int count = 0;
-        size_t bytes_read;
+            simulation->bodies[ioffset] = buffer[0];      //x
+            simulation->bodies[ioffset+1] = buffer[1];    //y  
+            simulation->bodies[ioffset+2] = buffer[2];    //z
+            simulation->bodies[ioffset+3] = buffer[4];    //vx
+            simulation->bodies[ioffset+4] = buffer[5];    //vy
+            simulation->bodies[ioffset+5] = buffer[6];    //vz
 
-        //Read up to sizeof(buffer) bytes
-        while ((bytes_read = fread(buffer, 1, sizeof(buffer), f)) > 0)
-        {
-            // process bytes_read worth of data in buffer in parallel
-            #pragma omp parallel for
-            for(int i = 0; i < (bytes_read / (8 * sizeof(double))) ; i++)
-            {   
-                //Figure out what body we are processing
-                int body = ((BUF_SIZE/8) * count) + i;
-                int bodyoffset = body * 6;
-                //Save from buffer to simulation
-                simulation->bodies[bodyoffset] = buffer[i * 8 + 0];      //x
-                simulation->bodies[bodyoffset+1] = buffer[i * 8 + 1];    //y  
-                simulation->bodies[bodyoffset+2] = buffer[i * 8 + 2];    //z
-                simulation->bodies[bodyoffset+3] = buffer[i * 8 + 4];    //vx
-                simulation->bodies[bodyoffset+4] = buffer[i * 8 + 5];    //vy
-                simulation->bodies[bodyoffset+5] = buffer[i * 8 + 6];    //vz
+            simulation->masses[i] = buffer[3];         //mass
 
-                simulation->masses[body] = buffer[i * 8 + 3];         //mass
-            } 
-            count++;
+            //Buffer[7] is radius, currently useless for data, only useful for graphics
         }
-        
         fclose(f);
+        
     }
     else
     {
@@ -181,7 +175,7 @@ double run_simulation(Simulation* simulation, double T)
  * @param simulation (Simulation*) pointer to the simulation object with the initial values       
  * @param T (double): Internal ending time of the simulation
  * 
- * @return t (double): Real time that the simulation was running
+ * @return t (double): Real time that the simulation was running or STATUS_ERROR (0) in case of error
 **/
 {   
     //Calculate the number of steps we will have to take to get to T
@@ -193,28 +187,24 @@ double run_simulation(Simulation* simulation, double T)
 
     char filename[256];
 
-
     //Internal variables to measure time 
     struct timeval t_start, t_end;
     gettimeofday ( &t_start, NULL );
 
-    //Internal variable for concurrent write
-    pid_t pid = -1;
 
     //Run simulation
     for(long int step = 1; step <= steps; step++)
     {
         //Integrate next step using runge-kutta
-        rk4(simulation);
+        if(rk4(simulation) == STATUS_ERROR)
+            return STATUS_ERROR;
         
         //Save data if we must
         if(step % save_step == 0)
-        {   
-            
-            FILE* f = NULL;
-
+        {      
             sprintf(filename, "../Graphics/data/%ld.bin", file_number);
-            save_values_bin(simulation, filename);
+            if(save_values_bin(simulation, filename) == STATUS_ERROR)
+                return STATUS_ERROR;
             file_number++;
         }
 
@@ -229,21 +219,23 @@ double run_simulation(Simulation* simulation, double T)
     return WALLTIME(t_end) - WALLTIME(t_start);
 }
 
-void rk4(Simulation* simulation)
+int rk4(Simulation* simulation)
 /**
  * This funtion will calculate the next values of the simulation using the runge-kutta method
  * 
  * @param simulation (Simulation*): a pointer to the simulation
+ * @return status (int): STATUS_ERROR (0) in case of error STATUS_OK(1) in case everything when ok
  **/
 {   
-
     //Correctly set up holder
     for(int i = 0; i < simulation->n*6; i++)
     {
         simulation->holder[i] = simulation->bodies[i];
     }
+    
     //Calculate k1
-    calculate_acceleration(simulation, simulation->k1);
+    if(calculate_acceleration(simulation, simulation->k1) == STATUS_ERROR)
+        return STATUS_ERROR;
 
     //Calculate simulation.bodies+0.5*k1 to be able to calculate k2
     for(int i = 0; i < simulation->n*6; i++)
@@ -252,7 +244,8 @@ void rk4(Simulation* simulation)
     }
 
     //Calculate k2
-    calculate_acceleration(simulation, simulation->k2);
+    if(calculate_acceleration(simulation, simulation->k2) == STATUS_ERROR)
+        return STATUS_ERROR;
 
     //Calculate simulation.bodies+0.5*k2 to be able to calculate k3
     for(int i = 0; i < simulation->n*6; i++)
@@ -261,7 +254,8 @@ void rk4(Simulation* simulation)
     }
 
     //Calculate k3
-    calculate_acceleration(simulation, simulation->k3);
+    if(calculate_acceleration(simulation, simulation->k3) == STATUS_ERROR)
+        return STATUS_ERROR;
 
     //Calculate simulation.bodies+*k3 to be able to calculate k3
     for(int i = 0; i < simulation->n*6; i++)
@@ -270,7 +264,8 @@ void rk4(Simulation* simulation)
     }
 
     //Calculate k4
-    calculate_acceleration(simulation, simulation->k4);
+    if(calculate_acceleration(simulation, simulation->k4) == STATUS_ERROR)
+        return STATUS_ERROR;
 
     //Update simulation value to simulation.bodies + ((k1 + 2*k2 + 2*k3 + k4) / 6.0)
     for(int i = 0; i < simulation->n*6; i++)
@@ -278,53 +273,7 @@ void rk4(Simulation* simulation)
         simulation->bodies[i] = simulation->bodies[i] + ((simulation->k1[i] + 2.0*simulation->k2[i] + 2.0*simulation->k3[i] + simulation->k4[i]) / 6.0);
     }
 
-    return;
-}
-
-double* calculate_acceleration(Simulation* simulation, double*k)
-/**
- * Funtion to calculate the velocity and acceleration of the bodies using the current positions and velocities
- * @param simulation(Simulation*): a pointer to the simulation object we are simulation, in the holder variable the information must be stored as an array of values order as x1,y1,z1,vx1,vz1,vz1,x2,y2,z2,vx2,vz2,vz2...xn,yn,zn,vxn,vzn,vzn
- * @return k (double*): pointer in which to save the results, the result will be an array of values order as vx1,vy1,vz1,ax1,ay1,az1,vx2,vy2,vz2,ax2,ay2,az2...vxn,vyn,vzn,axn,ayn,azn
-**/
-{   
-    //Error checking
-    if(simulation == NULL || k == NULL)
-        return NULL;
-
-    //Init values of k as 0
-    for(int i = 0; i < simulation->n * 6; i++)
-    {
-        k[i] = 0.0;
-    }
-
-    //For all of the bodies, in parallel
-    #pragma omp parallel for
-    for(int i = 0; i < simulation->n; i++)
-    {
-        int ioffset = i * 6;
-        k[ioffset] = dt * simulation->holder[ioffset+3]; //vx
-        k[ioffset+1] = dt * simulation->holder[ioffset+4]; //vy
-        k[ioffset+2] = dt * simulation->holder[ioffset+5]; //vz
-        //For all other bodies
-        for(int j = 0; j < simulation->n; j++)
-        {   
-            //i and j cant be the same body
-            if(i==j)
-                continue;
-
-            int joffset = j * 6;
-            double dx = simulation->holder[joffset] - simulation->holder[ioffset]; //rx body 2 - rx body 1
-            double dy = simulation->holder[joffset+1] - simulation->holder[ioffset+1]; //ry body 2 - ry body 1
-            double dz = simulation->holder[joffset+2] - simulation->holder[ioffset+2]; //rz body 2 - rz body 1
-            
-            double r = pow(pow(dx, 2.0) + pow(dy, 2.0) + pow(dz, 2.0) + pow(softening, 2.0), 1.5); //distance magnitud with some softening
-            
-            k[ioffset+3] += dt * (G * simulation->masses[j] / r) * dx; //Acceleration formula for x
-            k[ioffset+4] += dt * (G * simulation->masses[j] / r) * dy; //Acceleration formula for y
-            k[ioffset+5] += dt * (G * simulation->masses[j] / r) * dz; //Acceleration formula for z
-        }
-    }
+    return STATUS_OK;
 }
 
 void free_simulation(Simulation* simulation)
@@ -383,54 +332,22 @@ void print_simulation_values(Simulation* simulation)
     printf("]\n");
 }
 
-int count_lines_csv(FILE* f)
-/**
- * This returns the number of lines in a text file, is O(N) but its the only way
- * @param file (FILE*) an openned file which lines are going to be read
- * @return n_lines (int) the number of lines in the file
- */
-{   
-    //Buffer to read all data too
-    char buffer[BUF_SIZE];
-    int n_lines = 0;
-    //Til we read the whole file
-    for(;;)
-    {   
-        //Load a lot of characters 
-        size_t res = fread(buffer, 1, BUF_SIZE, f);
-        if (ferror(f))
-            return -1;
-
-        //Iterate the characters and count the \n
-        int i;
-        for(i = 0; i < res; i++)
-            if (buffer[i] == '\n')
-                n_lines++;
-
-        //If we reached the end of the file stop reading
-        if (feof(f))
-            break;
-        //If we havent reached the end keep going
-    }
-
-    return n_lines;
-}
-
-void save_values_csv(Simulation* simulation, char* filename)
+int save_values_csv(Simulation* simulation, char* filename)
 /**
  * This funtion will print to the file f the current positions of all the bodies in the simulation as a csv
  * @param simulation (Simulation*):  a pointer to the simulation being stored
  * @param file (char*) the filepath in which the data is going to be stored as csv
+ * @return status (int): STATUS_ERROR (0) in case of error STATUS_OK(1) in case everything when ok
  */
 {   
     //Error checking
     if(simulation == NULL || filename == NULL)
-        return;
+        return STATUS_ERROR;
 
     //Open file
     FILE* f = fopen(filename, "w");
     if(f == NULL)
-        return;
+        return STATUS_ERROR;
 
     //For all n bodies
     for(int i = 0; i < simulation->n; i++)
@@ -441,23 +358,25 @@ void save_values_csv(Simulation* simulation, char* filename)
     }
 
     fclose(f);
+    return STATUS_OK;
 }
 
-void save_values_bin(Simulation* simulation, char* filename)
+int save_values_bin(Simulation* simulation, char* filename)
 /**
  * This funtion will print to the file f the current positions of all the bodies in the simulation as a bin
  * @param simulation (Simulation*):  a pointer to the simulation being stored
  * @param file (char*) the filepath in which the data is going to be stored as bin
+ * @return status (int): STATUS_ERROR (0) in case of error STATUS_OK(1) in case everything when ok
  */
 {   
     //Error checking
     if(simulation == NULL || filename == NULL)
-        return;
+        return STATUS_ERROR;
 
     //Open file
     FILE* f = fopen(filename, "wb");
     if(f == NULL)
-        return;
+        return STATUS_ERROR;
 
     double buffer[3];
 
@@ -475,28 +394,6 @@ void save_values_bin(Simulation* simulation, char* filename)
     }
 
     fclose(f);
+    return STATUS_OK;
 }
 
-int get_extention_type(const char *filename) 
-/**
- * This funtion will check if a filename is csv, bin or other extention type
- * @param filename (char *):  the filename we are checking
- * @param file_type(int): 
- *                          -1 (NO_EXT) extention not valid
- *                           0 (EXT_CSV) csv file
- *                           1 (EXT_BIN) bin file
- */
-{
-    const char *dot = strrchr(filename, '.');
-    //No extention
-    if(!dot || dot == filename) return NO_EXT;
-
-    //If extention is csv
-    if(strcmp(dot + 1, "csv") == 0) return EXT_CSV;
-
-    //If extention is bin
-    if(strcmp(dot + 1, "bin") == 0) return EXT_BIN;
-
-    //Extention not recognised
-    return NO_EXT;
-}

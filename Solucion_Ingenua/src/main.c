@@ -11,7 +11,7 @@ int main(int argc, char **argv )
     if(argc != 3)
     {
         printf("Invalid number of arguments\nUSE: ./main [T] [filepath]\n");
-        return -1;
+        return STATUS_ERROR;
     }
 
     //Create simulation from starting file
@@ -19,12 +19,17 @@ int main(int argc, char **argv )
     if(simulation == NULL)
     {   
         printf("Error while loading simulation\n");
-        return -1;
+        return STATUS_ERROR;
     }
     
     //Run simulation for T seconds
-    run_simulation(simulation, strtod(argv[1], NULL));
+    if(run_simulation(simulation, strtod(argv[1], NULL)) == STATUS_ERROR)
+    {
+        free_simulation(simulation);
+        return STATUS_ERROR;
+    }
     
     //Free memory
     free_simulation(simulation);
+    return STATUS_OK;
 }

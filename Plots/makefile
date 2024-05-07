@@ -1,8 +1,23 @@
 CC:=gcc
 CFLAGS+=-std=c11 -fopenmp
 LDLIBS+=-lm -pthread
-LDLIBS+=-lm
 
-time_simulations: time_simulations.c ../Paralelo_Ingenuo/src/simulation_OpenMP.c
+CUDA_CC:=nvcc
+CUDA_FLAGS+=
+CUDA_LDLIBS+=-lm -Xcompiler -fopenmp
+
+all: time_simulations time_simulations_cuda
+
+time_simulations: time_simulations.c ../Solucion_Ingenua/src/simulation_OpenMP.c
 	$(CC) $^ $(CFLAGS) $(LDLIBS) -o $@ $(LDLIBS)
+
+time_simulations_cuda: time_simulations_cuda.cpp ../Solucion_Ingenua/src/simulation_cuda_OpenMP.cu
+	$(CUDA_CC) $^ $(CUDA_FLAGS) $(CUDA_LDLIBS) -o $@ $(CUDA_LDLIBS)
+
+clean: 
+	rm -f time_simulations
+	rm -f time_simulations_cuda
+	rm -f times.log
+	rm -f fit.log
+	
 

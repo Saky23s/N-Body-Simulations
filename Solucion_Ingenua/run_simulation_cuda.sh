@@ -20,12 +20,12 @@ make >/dev/null
 ./graphic_starting_position $2
 
 #Run simulation
-cd ../Secuencial_Ingenuo/
-rm main >/dev/null
-make >/dev/null
-./main $1 $2
+cd ../Solucion_Ingenua/
+rm simulation_cuda >/dev/null
+make simulation_cuda >/dev/null
+./simulation_cuda $1 $2
 
 #Run Graphics
 cd ../Graphics/
 cargo run
-cd ../Secuencial_Ingenuo/
+cd ../Solucion_Ingenua/

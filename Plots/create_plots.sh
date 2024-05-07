@@ -8,7 +8,7 @@ fi
 
 #Run time_simulation
 make >/dev/null
-./time_simulations $1 $2
+./time_simulations_cuda $1 $2
 
 #plot results
 gnuplot> load 'times.p'
