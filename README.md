@@ -1,5 +1,6 @@
 # Three-Body-Problem
 Este software requiere `cargo`, `rustc`, `gcc` y un sistema operativo linux.
+Para ejecutar cuda se necesita `nvcc`.
 
 ## Ejemplo de ejecucion secuencial
     cd Solucion_Ingenua
