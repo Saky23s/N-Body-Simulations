@@ -484,8 +484,7 @@ fn main()
             //If it has not been 1/24 of a second dont show next frame
             if now.duration_since(prevous_frame_time) < Duration::from_secs_f32(1.0 / 24.0)
             {   
-                println!("Sleeping for {}\n", (Duration::from_secs_f32(1.0 / 24.0)  - now.duration_since(prevous_frame_time)).as_secs_f32() );
-                thread::sleep( Duration::from_secs_f32(1.0 / 24.0)  - now.duration_since(prevous_frame_time));
+                thread::sleep(Duration::from_secs_f32(1.0 / 24.0)  - now.duration_since(prevous_frame_time));
             }
 
             prevous_frame_time = now;
