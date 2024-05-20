@@ -5,6 +5,7 @@
 #include <time.h>
 #include <string.h>
 #include <sys/time.h>
+#include <omp.h>
 #include "../inc/simulation.h"
 #include "aux.c"
 
@@ -201,7 +202,7 @@ double run_simulation(Simulation* simulation, double T)
         
         //Save data if we must
         if(step % save_step == 0)
-        {      
+        {   
             sprintf(filename, "../Graphics/data/%ld.bin", file_number);
             if(save_values_bin(simulation, filename) == STATUS_ERROR)
                 return STATUS_ERROR;

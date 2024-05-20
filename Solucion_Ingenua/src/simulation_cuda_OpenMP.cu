@@ -5,6 +5,7 @@
 #include <time.h>
 #include <string.h>
 #include <sys/time.h>
+#include <omp.h>
 #include "../inc/simulation.h"
 #include "aux.c"
 
@@ -408,7 +409,7 @@ double run_simulation(Simulation* simulation, double T)
     struct timeval t_start, t_end;
     gettimeofday ( &t_start, NULL );
 
-
+    printf("Simulating with CUDA and OpenMP\n");
     //Run simulation
     for(long int step = 1; step <= steps; step++)
     {
@@ -418,7 +419,7 @@ double run_simulation(Simulation* simulation, double T)
         
         //Save data if we must
         if(step % save_step == 0)
-        {                     
+        {      
             sprintf(filename, "../Graphics/data/%ld.bin", file_number);
             if(save_values_bin(simulation, filename) == STATUS_ERROR)
                 return STATUS_ERROR;
@@ -552,7 +553,7 @@ int calculate_acceleration(Simulation* simulation, double*k_position, double* k_
     cudaMemcpy( simulation->acceleration, simulation->d_acceleration, simulation->n * simulation->n * 3 * sizeof(simulation->acceleration[0]), cudaMemcpyDeviceToHost);
     
     //Reduce acceleration values in CPU using OpenMP
-    #pragma omp parallel for
+    #pragma omp parallel for schedule(static)
     for(int i = 0; i < simulation->n; i++)
     {   
         int ioffset = i * 3;

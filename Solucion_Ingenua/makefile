@@ -4,7 +4,7 @@ LDLIBS+=-lm -pthread
 
 CUDA_CC:=nvcc
 CUDA_FLAGS+=
-CUDA_LDLIBS+=-lm  -Xcompiler -fopenmp -fmad=false
+CUDA_LDLIBS+=-lm -Xcompiler=-fopenmp 
 
 SRC_FILES:=src/main.c 
 CUDA_SRC_FILES:=src/main.cpp
