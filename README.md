@@ -21,6 +21,7 @@ Primero ejecuta con OpenMP
     ./create_plots_openMP.sh 201 200
 
 Esto deberia tardar un minuto aprox. Luego ejecuta con cuda
+    
     ./create_plots_cuda.sh 201 200
 
 
