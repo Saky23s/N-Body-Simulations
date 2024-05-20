@@ -4,14 +4,17 @@ LDLIBS+=-lm -pthread
 
 CUDA_CC:=nvcc
 CUDA_FLAGS+=
-CUDA_LDLIBS+=-lm -Xcompiler -fopenmp
+CUDA_LDLIBS+=-lm -Xcompiler=-fopenmp 
 
 all: time_simulations time_simulations_cuda
 
-time_simulations: time_simulations.c ../Solucion_Ingenua/src/simulation_OpenMP.c
+time_simulations: time_simulations.c ../Solucion_Ingenua/src/simulation_secuencial.c
 	$(CC) $^ $(CFLAGS) $(LDLIBS) -o $@ $(LDLIBS)
 
-time_simulations_cuda: time_simulations_cuda.cpp ../Solucion_Ingenua/src/simulation_cuda_OpenMP.cu
+time_simulations_OpenMP: time_simulations.c ../Solucion_Ingenua/src/simulation_OpenMP.c
+	$(CC) $^ $(CFLAGS) $(LDLIBS) -o $@ $(LDLIBS)
+
+time_simulations_cuda: time_simulations_cuda.cpp ../Solucion_Ingenua/src/simulation_cuda.cu
 	$(CUDA_CC) $^ $(CUDA_FLAGS) $(CUDA_LDLIBS) -o $@ $(CUDA_LDLIBS)
 
 clean: 
