@@ -37,8 +37,7 @@ struct _Simulation
     
     //Cuda variables
     double* d_masses;
-    double* d_acceleration;
-    double* d_holder_position;
+    double* d_position;
     double* d_k_velocity;
 } _Simulation;
 
@@ -51,7 +50,7 @@ int save_values_csv(Simulation* simulation, char* filename);
 int save_values_bin(Simulation* simulation, char* filename);
 int calculate_acceleration(Simulation* simulation, double*k_position,double*k_velocity);
 
-__global__ void calculate_acceleration_values_block_reduce(double* d_masses, double* d_holder_position, double* d_aceleration, double* d_block_holder, int n, double d_dt, unsigned int block_n);
+__global__ void calculate_acceleration_values_block_reduce(double* d_masses, double* d_position, double* d_block_holder, int n, double d_dt, unsigned int block_n);
 
 #define cudaErrorCheck(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
@@ -233,10 +232,7 @@ int simulation_allocate_memory(Simulation* simulation)
     status = cudaMalloc(&simulation->d_masses, simulation->n * sizeof(simulation->d_masses[0]));
     cudaErrorCheck(status);
 
-    status = cudaMalloc(&simulation->d_acceleration, 3 * simulation->n * simulation->n * sizeof(simulation->d_acceleration[0]));
-    cudaErrorCheck(status);
-
-    status = cudaMalloc(&simulation->d_holder_position, simulation->n * 3 * sizeof(simulation->d_holder_position[0]));
+    status = cudaMalloc(&simulation->d_position, simulation->n * 3 * sizeof(simulation->d_position[0]));
     cudaErrorCheck(status);
 
     if(simulation->n <= 32)
@@ -278,9 +274,8 @@ void free_simulation(Simulation* simulation)
     if(simulation->block_holder)
         free(simulation->block_holder);
 
-    cudaFree(simulation->d_acceleration);
     cudaFree(simulation->d_masses);
-    cudaFree(simulation->d_holder_position);
+    cudaFree(simulation->d_position);
     cudaFree(simulation->d_k_velocity);
 
     //Frees the simulation object itself
@@ -550,10 +545,10 @@ int calculate_acceleration(Simulation* simulation, double*k_position, double* k_
         gridDims = { block_n, block_n, 1 };
     }
 
-    cudaMemcpy( simulation->d_holder_position,  simulation->holder_position, simulation->n * 3 * sizeof(simulation->holder_position[0]),cudaMemcpyHostToDevice);
+    cudaMemcpy( simulation->d_position,  simulation->holder_position, simulation->n * 3 * sizeof(simulation->holder_position[0]),cudaMemcpyHostToDevice);
     cudaMemset( simulation->d_k_velocity, 0.0, 3 * simulation->n  * block_n * sizeof(simulation->d_k_velocity[0]));
     
-    calculate_acceleration_values_block_reduce<<<gridDims, threadBlockDims, 3 * threadBlockDims.x * threadBlockDims.y * sizeof(double)>>>(simulation->d_masses, simulation->d_holder_position, simulation->d_acceleration, simulation->d_k_velocity ,simulation->n, dt, block_n);
+    calculate_acceleration_values_block_reduce<<<gridDims, threadBlockDims, 3 * threadBlockDims.x * threadBlockDims.y * sizeof(double)>>>(simulation->d_masses, simulation->d_position, simulation->d_k_velocity ,simulation->n, dt, block_n);
     cudaError_t status = cudaGetLastError();
     cudaErrorCheck(status);
 
@@ -575,7 +570,7 @@ int calculate_acceleration(Simulation* simulation, double*k_position, double* k_
     return STATUS_OK;
 }
 
-__global__ void calculate_acceleration_values_block_reduce(double* d_masses, double* d_holder_position, double* d_aceleration, double* d_block_holder, int n, double d_dt, unsigned int block_n)
+__global__ void calculate_acceleration_values_block_reduce(double* d_masses, double* d_position, double* d_block_holder, int n, double d_dt, unsigned int block_n)
 {   
     //Array where all values of this block will be stored
     extern __shared__ double sdata[];
@@ -601,11 +596,11 @@ __global__ void calculate_acceleration_values_block_reduce(double* d_masses, dou
     //Calculate pull of one body by other body
     else if(i < n && j < n)
     {   
-        double dx = d_holder_position[joffset] - d_holder_position[ioffset]; //rx body 2 - rx body 1
-        double dy = d_holder_position[joffset+1] - d_holder_position[ioffset+1]; //ry body 2 - ry body 1
-        double dz = d_holder_position[joffset+2] - d_holder_position[ioffset+2]; //rz body 2 - rz body 1
+        double dx = d_position[joffset] - d_position[ioffset]; //rx body 2 - rx body 1
+        double dy = d_position[joffset+1] - d_position[ioffset+1]; //ry body 2 - ry body 1
+        double dz = d_position[joffset+2] - d_position[ioffset+2]; //rz body 2 - rz body 1
         
-        double r = pow(dx, 2) + pow(dy, 2) + pow(dz, 2) + pow(softening, 2); //distance magnitud with some softening
+        double r = dx * dx + dy * dy + dz * dz + pow(softening, 2); //distance magnitud with some softening
         double h = ((G * d_masses[j]) / (pow(r, 1.5))); //Acceleration formula
 
 
