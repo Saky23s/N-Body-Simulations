@@ -39,7 +39,8 @@ int main(int argc, char **argv)
         error += fabs(base_buffer[0] - other_buffer[0]) + fabs(base_buffer[1] - other_buffer[1]) + fabs(base_buffer[2] - other_buffer[2]);
         
     }
-    printf("Total error between %s and %s: %lf\n", argv[2], argv[3], error);
     fclose(base_file);
     fclose(file_to_check);
+
+    return 1;
 }
