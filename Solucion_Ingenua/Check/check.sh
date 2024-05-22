@@ -20,20 +20,29 @@ make generate_random  >/dev/null
 ./generate_random $1
 
 cd ../
-/bin/bash run_simulation_secuential.sh 1 ../Starting_Configurations/bin_files/random.bin
+rm simulation_secuencial >/dev/null
+make simulation_secuencial >/dev/null
+
+./simulation_secuencial 1 ../Starting_Configurations/bin_files/random.bin
 
 cp ../Graphics/data/1.bin Check/secuential.bin
 
-/bin/bash run_simulation_cuda_OpenMP.sh 1 ../Starting_Configurations/bin_files/random.bin
+#Delete old data
+if [ -d ../Graphics/data ]; then
+  rm -f ../Graphics/data/*.csv
+  rm -f ../Graphics/data/*.bin
+else
+  mkdir ../Graphics/data
+fi
 
-cp ../Graphics/data/1.bin Check/cuda_OpenMP.bin
-
-/bin/bash run_simulation_cuda.sh 1 ../Starting_Configurations/bin_files/random.bin
+rm simulation_cuda >/dev/null
+make simulation_cuda >/dev/null
+./simulation_cuda 1 ../Starting_Configurations/bin_files/random.bin
 
 cp ../Graphics/data/1.bin Check/cuda.bin
 
 cd Check/
 rm -f compare
 make compare  >/dev/null
-./compare $1 secuential.bin cuda_OpenMP.bin
+
 ./compare $1 secuential.bin cuda.bin
