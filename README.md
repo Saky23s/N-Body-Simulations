@@ -15,12 +15,13 @@ Para ejecutar cuda se necesita `nvcc`.
     ./run_simulation_cuda.sh 100 ../Starting_Configurations/csv_files/ocho.csv
 
 # JUAN
-    Primero ejecuta con OpenMP
+Primero ejecuta con OpenMP
 
     cd Plots
     ./create_plots_openMP.sh 201 200
 
-    Esto deberia tardar un minuto aprox. Luego ejecuta con cuda
+Esto deberia tardar un minuto aprox. Luego ejecuta con cuda
+    
     ./create_plots_cuda.sh 201 200
 
 
