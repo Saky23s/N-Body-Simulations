@@ -4,7 +4,7 @@ LDLIBS+=-lm -pthread
 
 CUDA_CC:=nvcc
 CUDA_FLAGS+=
-CUDA_LDLIBS+=-lm -Xcompiler=-fopenmp 
+CUDA_LDLIBS+=-lm 
 
 all: time_simulations time_simulations_cuda
 
