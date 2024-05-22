@@ -5,17 +5,11 @@
 #include <time.h>
 #include <string.h>
 #include <sys/time.h>
-#include <cooperative_groups.h>
 #include "../inc/simulation.h"
 #include "aux.c"
 
-using namespace cooperative_groups;
-namespace cg = cooperative_groups;
-
-#define D(n, cord, i, j, pointer) pointer[(n * n * cord) + (i * n) + j]
 #define B(n, block_size, cord, i, block_i, pointer) pointer[(n * block_size  * cord) + (i * block_size) + block_i]
-#define P(n, cord, i, j) simulation->acceleration[(n * n * cord) + (i * n) + j]
-
+#define S(size_i, size_j, cord, i, j, pointer) pointer[(size_i * size_j * cord) + (size_i * i) + j]
 
 struct _Simulation
 {
@@ -56,10 +50,9 @@ int rk4(Simulation* simulation);
 int save_values_csv(Simulation* simulation, char* filename); 
 int save_values_bin(Simulation* simulation, char* filename);
 int calculate_acceleration(Simulation* simulation, double*k_position,double*k_velocity);
-int gpu_calculate_and_reduce_acceleration(Simulation* simulation, double* k_velocity, dim3 gridDims, dim3 threadBlockDims);
 
-__global__ void calculate_acceleration_values(double* d_masses, double* d_holder_position, double* d_aceleration, double* k_position, int n, double d_dt);
 __global__ void calculate_acceleration_values_block_reduce(double* d_masses, double* d_holder_position, double* d_aceleration, double* d_block_holder, int n, double d_dt, unsigned int block_n);
+
 #define cudaErrorCheck(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
 {
@@ -542,28 +535,29 @@ int calculate_acceleration(Simulation* simulation, double*k_position, double* k_
     //Call cuda
     dim3 threadBlockDims;
     dim3 gridDims;
-
+    unsigned int block_n;
+    
     if(simulation->n <= 32)
     {
         threadBlockDims= {(unsigned int) simulation->n , (unsigned int) simulation->n , 1 } ; //1024 threads per block
         gridDims = { 1, 1, 1 } ; 
-        return gpu_calculate_and_reduce_acceleration(simulation, k_velocity, gridDims, threadBlockDims);
+        block_n = 1;
     }
-
-    threadBlockDims = {32 , 32 , 1 } ; //1024 threads per block
-    
-    unsigned int block_n = (unsigned int) ceil( simulation->n/32.0);
-    gridDims = { block_n, block_n, 1 };
+    else
+    {
+        threadBlockDims = {32 , 32 , 1 } ; //1024 threads per block
+        block_n = (unsigned int) ceil( simulation->n/32.0);
+        gridDims = { block_n, block_n, 1 };
+    }
 
     cudaMemcpy( simulation->d_holder_position,  simulation->holder_position, simulation->n * 3 * sizeof(simulation->holder_position[0]),cudaMemcpyHostToDevice);
     cudaMemset( simulation->d_k_velocity, 0.0, 3 * simulation->n  * block_n * sizeof(simulation->d_k_velocity[0]));
     
-    calculate_acceleration_values_block_reduce<<<gridDims, threadBlockDims>>>(simulation->d_masses, simulation->d_holder_position, simulation->d_acceleration, simulation->d_k_velocity ,simulation->n, dt, block_n);
+    calculate_acceleration_values_block_reduce<<<gridDims, threadBlockDims, 3 * threadBlockDims.x * threadBlockDims.y * sizeof(double)>>>(simulation->d_masses, simulation->d_holder_position, simulation->d_acceleration, simulation->d_k_velocity ,simulation->n, dt, block_n);
     cudaError_t status = cudaGetLastError();
     cudaErrorCheck(status);
 
     cudaMemcpy( simulation->block_holder, simulation->d_k_velocity, 3 * simulation->n * block_n* sizeof(simulation->block_holder[0]), cudaMemcpyDeviceToHost);
-    //cudaMemcpy(simulation->acceleration, simulation->d_acceleration, 3* simulation->n * simulation->n * sizeof(simulation->acceleration[0]), cudaMemcpyDeviceToHost);
     
     for(int i = 0; i < simulation->n; i++)
     {
@@ -574,97 +568,23 @@ int calculate_acceleration(Simulation* simulation, double*k_position, double* k_
             k_velocity[ioffset] += B(simulation->n,block_n, 0, i, block_i, simulation->block_holder);
             k_velocity[ioffset + 1] += B(simulation->n,block_n, 1, i, block_i, simulation->block_holder);
             k_velocity[ioffset + 2] += B(simulation->n,block_n, 2, i, block_i, simulation->block_holder);
-            //printf("%lf ", B(simulation->n,block_n, 0, i, block_i, simulation->block_holder));
-            
         } 
-        //printf("\n");  
-    }
-    /*printf("\n");  
-    int count = 0;
-    for(int i = 0; i < simulation->n; i++)
-    {
-        double a = 0;
-        for(int j = 0; j < 32; j++)
-        {
-            a += simulation->acceleration[count];
-            count++;
-        }
-        printf("%lf ", a);
-
-        printf("%lf\n", simulation->acceleration[count]);
-        count++;
 
     }
-    printf("\n");  
-    printf("\n");  
-    for(int i = 0; i < simulation->n; i++)
-    {
-        for(int j = 0; j < simulation->n; j++)
-        {
-            printf("%lf ", P(simulation->n, 0, i, j));
-        }
-        printf("\n");
-    }
-    exit(1);*/
 
     return STATUS_OK;
 }
 
-__global__ void calculate_acceleration_values(double* d_masses, double* d_holder_position, double* d_aceleration, double* d_k_velocity, int n, double d_dt)
-{   
-    //Get universal position
-    int i = threadIdx.x + blockIdx.x * blockDim.x;
-    int j = threadIdx.y + blockIdx.y * blockDim.y;
-
-    int ioffset = i * 3;
-    int joffset = j * 3;
-
-    //Get the grid
-    cg::grid_group grid = cg::this_grid();
-
-
-    //Dont calculate the pull of one body to itself
-    if(i == j)
-    {
-        D(n, 0, i, j, d_aceleration) = 0.0;    //x
-        D(n, 1, i, j, d_aceleration) = 0.0;    //y
-        D(n, 2, i, j, d_aceleration) = 0.0;    //z
-    }
-    else if(i < n && j < n)
-    {   
-        double dx = d_holder_position[joffset] - d_holder_position[ioffset]; //rx body 2 - rx body 1
-        double dy = d_holder_position[joffset+1] - d_holder_position[ioffset+1]; //ry body 2 - ry body 1
-        double dz = d_holder_position[joffset+2] - d_holder_position[ioffset+2]; //rz body 2 - rz body 1
-        
-        double r = pow(dx, 2) + pow(dy, 2) + pow(dz, 2) + pow(softening, 2); //distance magnitud with some softening
-        double h = ((G * d_masses[j]) / (pow(r, 1.5))); //Acceleration formula
-
-
-        D(n, 0, i, j, d_aceleration) = d_dt * h * dx; //Acceleration formula for x
-        D(n, 1, i, j, d_aceleration) = d_dt * h * dy; //Acceleration formula for y
-        D(n, 2, i, j, d_aceleration) = d_dt * h * dz; //Acceleration formula for z
-    }
-    
-    grid.sync(); // wait for all threads to finish calculating
-
-    for (int thread = 0; thread < n ; thread++)
-    {
-        if(j == thread)
-        {
-            d_k_velocity[ioffset] += D(n, 0, i, j, d_aceleration);
-            d_k_velocity[ioffset + 1] += D(n, 1, i, j, d_aceleration);
-            d_k_velocity[ioffset + 2] += D(n, 2, i, j, d_aceleration);
-        }
-        grid.sync();
-    }
-}
-
 __global__ void calculate_acceleration_values_block_reduce(double* d_masses, double* d_holder_position, double* d_aceleration, double* d_block_holder, int n, double d_dt, unsigned int block_n)
-{
-    //Get universal position
-    __shared__ double sdata[3][32][32];
+{   
+    //Array where all values of this block will be stored
+    extern __shared__ double sdata[];
+
+    //Get position in the block
     int x = threadIdx.x;
     int y = threadIdx.y;
+
+    //Get universal position
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     int j = threadIdx.y + blockIdx.y * blockDim.y;
 
@@ -674,10 +594,11 @@ __global__ void calculate_acceleration_values_block_reduce(double* d_masses, dou
     //Dont calculate the pull of one body to itself
     if(i == j)
     {
-        sdata[0][x][y] = 0.0;    //x
-        sdata[1][x][y] = 0.0;    //y
-        sdata[2][x][y] = 0.0;    //z
+        S(blockDim.x, blockDim.y, 0, x, y, sdata) = 0.0;    //x
+        S(blockDim.x, blockDim.y, 1, x, y, sdata) = 0.0;    //y
+        S(blockDim.x, blockDim.y, 2, x, y, sdata) = 0.0;    //z
     }
+    //Calculate pull of one body by other body
     else if(i < n && j < n)
     {   
         double dx = d_holder_position[joffset] - d_holder_position[ioffset]; //rx body 2 - rx body 1
@@ -688,11 +609,12 @@ __global__ void calculate_acceleration_values_block_reduce(double* d_masses, dou
         double h = ((G * d_masses[j]) / (pow(r, 1.5))); //Acceleration formula
 
 
-        sdata[0][x][y] = d_dt * h * dx; //Acceleration formula for x
-        sdata[1][x][y] = d_dt * h * dy; //Acceleration formula for y
-        sdata[2][x][y] = d_dt * h * dz; //Acceleration formula for z
+        S(blockDim.x, blockDim.y, 0, x, y, sdata) = d_dt * h * dx; //Acceleration formula for x
+        S(blockDim.x, blockDim.y, 1, x, y, sdata) = d_dt * h * dy; //Acceleration formula for y
+        S(blockDim.x, blockDim.y, 2, x, y, sdata) = d_dt * h * dz; //Acceleration formula for z
     }
     
+    //Reduce all values of this block
     if(i < n && j < n)
     {   
         __syncthreads();
@@ -700,9 +622,9 @@ __global__ void calculate_acceleration_values_block_reduce(double* d_masses, dou
         {
             if(y == thread)
             {
-                B(n, block_n, 0, i, blockIdx.x, d_block_holder) += sdata[0][x][y];
-                B(n, block_n, 1, i, blockIdx.x, d_block_holder) += sdata[1][x][y];
-                B(n, block_n, 2, i, blockIdx.x, d_block_holder) += sdata[2][x][y];
+                B(n, block_n, 0, i, blockIdx.y, d_block_holder) += S(blockDim.x, blockDim.y, 0, x, y, sdata);
+                B(n, block_n, 1, i, blockIdx.y, d_block_holder) += S(blockDim.x, blockDim.y, 1, x, y, sdata);
+                B(n, block_n, 2, i, blockIdx.y, d_block_holder) += S(blockDim.x, blockDim.y, 2, x, y, sdata);
             }
             __syncthreads();
         }
@@ -746,29 +668,4 @@ __global__ void calculate_acceleration_values_block_reduce(double* d_masses, dou
 
     
 
-}
-
-int gpu_calculate_and_reduce_acceleration(Simulation* simulation, double* k_velocity, dim3 gridDims, dim3 threadBlockDims)
-{
-    //Copy data from host to device.
-    cudaMemcpy( simulation->d_holder_position,  simulation->holder_position, simulation->n * 3 * sizeof(simulation->holder_position[0]),cudaMemcpyHostToDevice);
-    cudaMemset( simulation->d_k_velocity, 0.0, sizeof(simulation->d_k_velocity[0]) * 3 * simulation->n);
-
-    double ddt = dt;
-    void *args[] = 
-                    {
-                        ( void *) &simulation->d_masses,
-                        ( void *) &simulation->d_holder_position,
-                        ( void *) &simulation->d_acceleration,
-                        ( void *) &simulation->d_k_velocity,
-                        ( void *) &simulation->n,
-                        ( void *) &ddt,
-                    };
-        
-    //Launch the kernel
-    cudaLaunchCooperativeKernel ( (void*) calculate_acceleration_values , gridDims , threadBlockDims , args );
-    cudaError_t status = cudaGetLastError();
-    cudaErrorCheck(status);
-    cudaMemcpy( k_velocity, simulation->d_k_velocity, simulation->n * 3 * sizeof(k_velocity[0]), cudaMemcpyDeviceToHost);
-    return STATUS_OK;
 }
