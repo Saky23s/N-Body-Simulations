@@ -1,62 +1,67 @@
 #!/bin/bash 
 
+RED='\033[41m'
+GREEN='\033[42m'
+YELLOW='\033[43m'
+NC='\033[m'
+CLEAR_LINE='\033[K'
+
 # Check if exactly two parameters are provided
-if [ "$#" -ne 1 ]; then
-    echo "Usage: $0 <N>"
+if [ "$#" -ne 3 ]; then
+    echo "Usage: $0 <start> <end> <step>"
     exit 1
 fi
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-NC='\033[0m'
-for (( n=1; n<=$1; n++ ))
+
+#Generate fresh executables
+make clean *>/dev/null
+make all  >/dev/null
+
+cd ../
+
+make clean *>/dev/null
+make all  >/dev/null
+
+cd Check/
+
+for (( n=$1; n<=$2; n+=$3 ))
 do 
-  echo -n "Testing for $n bodies..."
+  echo -ne "${YELLOW} TESTING ${NC} $n bodies...\r"
+  
   #Delete old data
   if [ -d ../../Graphics/data ]; then
-    rm -f ../../Graphics/data/*.csv
-    rm -f ../../Graphics/data/*.bin
+    rm -f ../../Graphics/data/*.csv >/dev/null
+    rm -f ../../Graphics/data/*.bin >/dev/null
   else
-    mkdir ../../Graphics/data
+    mkdir ../../Graphics/data >/dev/null
   fi
 
-  #Generate a random starting position
-  rm -f generate_random
-  make generate_random  >/dev/null
-  ./generate_random $n
+  ./generate_random $n >/dev/null
 
   cd ../
-  rm simulation_secuencial >/dev/null
-  make simulation_secuencial >/dev/null
-
   ./simulation_secuencial 1 ../Starting_Configurations/bin_files/random.bin >/dev/null
-
-  cp ../Graphics/data/1.bin Check/secuential.bin
+  cp ../Graphics/data/1.bin Check/secuential.bin >/dev/null
 
   #Delete old data
   if [ -d ../Graphics/data ]; then
-    rm -f ../Graphics/data/*.csv
-    rm -f ../Graphics/data/*.bin
+    rm -f ../Graphics/data/*.csv 2>/dev/null
+    rm -f ../Graphics/data/*.bin 2>/dev/null
   else
-    mkdir ../Graphics/data
+    mkdir ../Graphics/data 2>/dev/null
   fi
 
-  rm simulation_cuda >/dev/null
-  make simulation_cuda >/dev/null
   ./simulation_cuda 1 ../Starting_Configurations/bin_files/random.bin >/dev/null
 
-  cp ../Graphics/data/1.bin Check/cuda.bin
+  cp ../Graphics/data/1.bin Check/cuda.bin >/dev/null
 
   cd Check/
-  rm -f compare
-  make compare  >/dev/null
+  ./compare $1 secuential.bin cuda.bin >/dev/null
 
-  ./compare $1 secuential.bin cuda.bin
   if [ $? == 1 ];
   then
-    echo -e "${GREEN}PASSED${NC}"
+    echo -e "${CLEAR_LINE}${GREEN} PASSED ${NC} $n bodies"
   else
-    echo -e "${RED}FAILED${NC}"
+    echo -e "${CLEAR_LINE} ${RED} FAILED ${NC} $n bodies"
     exit
   fi
 done
