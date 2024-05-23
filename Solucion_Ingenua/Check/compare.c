@@ -41,6 +41,9 @@ int main(int argc, char **argv)
     }
     fclose(base_file);
     fclose(file_to_check);
-
-    return 1;
+    
+    if(error == 0.0)
+        return 1;
+    else
+        return 0;
 }
