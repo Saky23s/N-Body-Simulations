@@ -107,8 +107,55 @@ unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>, colors: &Vec<f32>,
 
 }
 
-//Apply all trasformations to draw the new scene
-unsafe fn draw_scene(node: &scene_graph::SceneNode, shaders: &Shader, view_projection_matrix: &glm::Mat4, transformation_so_far: &glm::Mat4) 
+//Apply all trasformations to draw the root scene and to all of its children
+unsafe fn draw_root(node: &scene_graph::SceneNode, shaders: &Shader, view_projection_matrix: &glm::Mat4, transformation_so_far: &glm::Mat4) 
+{
+    // Perform any logic needed before drawing the node
+    let mut trasformation :glm::Mat4 = *transformation_so_far;
+    
+    // Check if node is drawable, if so: set uniforms, bind VAO and draw VAO
+    if node.vao_id != 0 && node.index_count > 0
+    {   
+        let mut view :glm::Mat4  = *view_projection_matrix;
+        let mut node_translation: glm::Mat4 = glm::translation(&glm::vec3(node.position[0], node.position[1], node.position[2]));
+        node_translation = glm::scale(&node_translation,&node.scale); // Scale first, Translate second
+
+
+        let mut reference_point_traslation: glm::Mat4 = glm::translation(&glm::vec3(node.reference_point[0], node.reference_point[1], node.reference_point[2]));
+        let mut reference_point_traslation_inverse: glm::Mat4 = glm::translation(&glm::vec3(-node.reference_point[0], -node.reference_point[1], -node.reference_point[2]));
+        let mut rotation_x: glm::Mat4 = glm::rotation(node.rotation[0], &glm::vec3(1.0, 0.0, 0.0));
+        let mut rotation_y: glm::Mat4 = glm::rotation(node.rotation[1], &glm::vec3(0.0, 1.0, 0.0));
+        let mut rotation_z: glm::Mat4 = glm::rotation(node.rotation[2], &glm::vec3(0.0, 0.0, 1.0));
+        let mut final_camera_rotation: glm::Mat4 = reference_point_traslation * rotation_x * rotation_y * rotation_z * reference_point_traslation_inverse;
+
+        
+        trasformation  = trasformation  * node_translation * final_camera_rotation;
+        view = view * trasformation;
+        
+        // Normals rotation
+        let mut normal_transform: glm::Mat3 = glm::identity();
+        normal_transform[(0, 0)] = trasformation[(0, 0)];
+        normal_transform[(0, 1)] = trasformation[(0, 1)];
+        normal_transform[(0, 2)] = trasformation[(0, 2)];
+        normal_transform[(1, 0)] = trasformation[(1, 0)];
+        normal_transform[(1, 1)] = trasformation[(1, 1)];
+        normal_transform[(1, 2)] = trasformation[(1, 2)];
+        normal_transform[(2, 0)] = trasformation[(2, 0)];
+        normal_transform[(2, 1)] = trasformation[(2, 1)];
+        normal_transform[(2, 2)] = trasformation[(2, 2)];
+
+        gl::UniformMatrix3fv(shaders.get_uniform_location("normal_transform"), 1, gl::FALSE,normal_transform.as_ptr());
+        gl::UniformMatrix4fv(shaders.get_uniform_location("transformation"), 1, gl::FALSE, view.as_ptr());
+    }
+    // Recurse
+    for &child in &node.children 
+    {   
+        draw_sphere(&*child, shaders, view_projection_matrix, &trasformation);
+    }
+}
+
+//Apply all trasformations to draw the root scene and to all of its children
+unsafe fn draw_sphere(node: &scene_graph::SceneNode, shaders: &Shader, view_projection_matrix: &glm::Mat4, transformation_so_far: &glm::Mat4) 
 {
     // Perform any logic needed before drawing the node
     let mut trasformation :glm::Mat4 = *transformation_so_far;
@@ -152,12 +199,8 @@ unsafe fn draw_scene(node: &scene_graph::SceneNode, shaders: &Shader, view_proje
         gl::BindVertexArray(node.vao_id);
         gl::DrawElements(gl::TRIANGLES, node.index_count, gl::UNSIGNED_INT, std::ptr::null());
     }
-    // Recurse
-    for &child in &node.children 
-    {   
-        draw_scene(&*child, shaders, view_projection_matrix, &trasformation);
-    }
 }
+
 
 fn main() 
 {
@@ -353,7 +396,8 @@ fn main()
 
             //Delta time used for camera movements
             let delta_time = (1.0 / 24.0) as f32  * 10.0;
-
+            let start = std::time::Instant::now();
+            
             // Handle resize events
             if let Ok(mut new_size) = window_size.lock() 
             {
@@ -474,10 +518,12 @@ fn main()
                     }
                 }  
 
-                // Draw
-                unsafe { draw_scene(&root_node, &shaders, &transformation, &glm::identity()); }
-            }
-
+                }
+            let before_draw = std::time::Instant::now();
+            // Draw
+            unsafe { draw_root(&root_node, &shaders, &transformation, &glm::identity()); }
+            let after_draw = std::time::Instant::now();
+            println!("{}, {}", (before_draw - start).as_secs_f32(), (after_draw - before_draw).as_secs_f32());
             // Compute time passed since the previous frame and since the start of the program
             let now = std::time::Instant::now();
 
