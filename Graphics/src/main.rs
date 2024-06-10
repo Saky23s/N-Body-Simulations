@@ -7,11 +7,17 @@
 #![allow(unused_variables)]
 
 extern crate nalgebra_glm as glm;
+use std::fs;
 use std::f32::consts::PI;
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 use std::{mem, os::raw::c_void, ptr};
 use std::time::Duration;
+use image::{ImageBuffer, Rgb};
+use std::ffi::CStr;
+use std::process;
+use std::io::{self, Write};
+
 
 mod shader;
 mod util;
@@ -201,6 +207,31 @@ unsafe fn draw_sphere(node: &scene_graph::SceneNode, shaders: &Shader, view_proj
     }
 }
 
+fn fix_buffer(raw: &mut Vec<u8>, width: u32, height:u32) -> Vec<u8>
+{
+    let clean_buf_size = (width * height * 3) as usize;
+    let mut clean: Vec<u8> = vec![0; clean_buf_size];
+    let mut i = 0;
+    let mut clean_i = height;
+    while i < height
+    {
+        let mut j = 0;
+        while j < width
+        {   
+            let raw_index = (i * width + j) * 4;
+            let clean_index = ((clean_i - 1) * width + j) * 3;
+
+            clean[clean_index as usize] = raw[raw_index as usize];
+            clean[(clean_index+1) as usize] = raw[(raw_index+1) as usize];
+            clean[(clean_index+2) as usize] = raw[(raw_index+2) as usize];
+
+            j = j + 1;
+        }
+        i = i + 1;
+        clean_i = clean_i - 1;
+    }
+    return clean;
+}
 
 fn main() 
 {
@@ -214,12 +245,12 @@ fn main()
             INITIAL_SCREEN_H,
         ));
 
-    let cb = glutin::ContextBuilder::new().with_vsync(true);
+    let cb = glutin::ContextBuilder::new();
     let windowed_context = cb.build_windowed(wb, &el).unwrap();
     
     // Uncomment these in the future for mouse control (Or not)
     // windowed_context.window().set_cursor_grab(true).expect("failed to grab cursor");
-    // windowed_context.window().set_cursor_visible(false);
+    windowed_context.window().set_visible(false);
 
     // Set up a shared vector for keeping track of currently pressed keys
     let arc_pressed_keys = Arc::new(Mutex::new(Vec::<VirtualKeyCode>::with_capacity(10)));
@@ -240,6 +271,16 @@ fn main()
     let should_close = Arc::new(Mutex::new(false));
     // Clone a reference to the shared flag for use outside the event loop
     let should_close_clone = should_close.clone();
+
+    let mut number_of_pngs = -1;
+
+    let paths = fs::read_dir("./data/").unwrap();
+
+    for path in paths 
+    {
+        number_of_pngs = number_of_pngs + 1;
+    }
+    
     
     // Spawn a separate thread for rendering, so event handling doesn't block rendering
     let render_thread = thread::spawn(move || 
@@ -256,6 +297,9 @@ fn main()
 
         let mut window_aspect_ratio = INITIAL_SCREEN_W as f32 / INITIAL_SCREEN_H as f32;
 
+
+        let (mut width, mut height): (u32, u32) = context.window().inner_size().into();
+
         // Set up openGL
         unsafe 
         {
@@ -270,21 +314,9 @@ fn main()
             //gl::BlendEquation(gl::FUNC_ADD);
             gl::Enable(gl::DEBUG_OUTPUT_SYNCHRONOUS);
             gl::DebugMessageCallback(Some(util::debug_callback), ptr::null());
-
-            // Print some diagnostics
-            println!(
-                "{}: {}",
-                util::get_gl_string(gl::VENDOR),
-                util::get_gl_string(gl::RENDERER)
-            );
-            println!("OpenGL\t: {}", util::get_gl_string(gl::VERSION));
-            println!(
-                "GLSL\t: {}",
-                util::get_gl_string(gl::SHADING_LANGUAGE_VERSION)
-            );
         }
 
-        //Set yp some different colors for the bodies
+        //Set up some different colors for the bodies
         let colors = [
             [1.0,0.8274509803921568,0.00392156862745098, 1.0], //Yellow
             [0.36470588235294116, 0.6784313725490196, 0.9215686274509803, 1.0], //Blue
@@ -322,7 +354,7 @@ fn main()
         for body in &bodies
         {
             let body_vao = unsafe { create_vao(&body.vertices, &body.indices, &body.colors, &body.normals) };
-            bodies_vaos.push(body_vao)
+            bodies_vaos.push(body_vao);
         }
         
         //Create the nodes
@@ -386,11 +418,10 @@ fn main()
             shaders.activate();
         }
 
-
-
         // The main rendering loop
         let first_frame_time = std::time::Instant::now();
         let mut prevous_frame_time = first_frame_time;
+        
         loop 
         {
 
@@ -402,7 +433,8 @@ fn main()
             if let Ok(mut new_size) = window_size.lock() 
             {
                 if new_size.2
-                 {
+                 {  
+
                     context.resize(glutin::dpi::PhysicalSize::new(new_size.0, new_size.1));
                     window_aspect_ratio = new_size.0 as f32 / new_size.1 as f32;
                     (*new_size).2 = false;
@@ -519,24 +551,34 @@ fn main()
                 }  
 
                 }
-            let before_draw = std::time::Instant::now();
             // Draw
             unsafe { draw_root(&root_node, &shaders, &transformation, &glm::identity()); }
-            let after_draw = std::time::Instant::now();
-            println!("{}, {}", (before_draw - start).as_secs_f32(), (after_draw - before_draw).as_secs_f32());
-            // Compute time passed since the previous frame and since the start of the program
-            let now = std::time::Instant::now();
+            
+            //Save buffer as png
+            let buf_size = (width * height * 4) as usize;
+            let mut pixels: Vec<u8> = vec![0; buf_size];
 
-            //If it has not been 1/24 of a second dont show next frame
-            if now.duration_since(prevous_frame_time) < Duration::from_secs_f32(1.0 / 24.0)
-            {   
-                thread::sleep(Duration::from_secs_f32(1.0 / 24.0)  - now.duration_since(prevous_frame_time));
+            unsafe {
+                gl::ReadPixels(
+                    0,
+                    0,
+                    width as i32,
+                    height as i32,
+                    gl::RGBA,
+                    gl::UNSIGNED_BYTE,
+                    &pixels[0] as *const u8 as *mut c_void
+                );
             }
 
-            prevous_frame_time = now;
-            // Display the new color buffer on the display
-            context.swap_buffers().unwrap(); // we use "double buffering" to avoid artifacts
+            //Fix pixel buffer
+            let fixed_pixels = fix_buffer(&mut pixels, width, height);
+            // Save the image as PNG
+            let img = ImageBuffer::<Rgb<u8>, Vec<u8>>::from_raw(width, height, fixed_pixels).unwrap();
+            img.save(format!("img/{:05}.png", t)).unwrap();
 
+            print!("\rGenerating video {}/{}", t, number_of_pngs);
+            io::stdout().flush().unwrap();
+            
             //Debuggin stuff
             //println!("{},{}", camera_translation[0],camera_translation[2]);
             //println!("{},{}", camera_rotation[0],camera_rotation[1]);
@@ -550,18 +592,7 @@ fn main()
     // Keep track of the health of the rendering thread
     let render_thread_healthy = Arc::new(RwLock::new(true));
     let render_thread_watchdog = Arc::clone(&render_thread_healthy);
-    thread::spawn(move || 
-    {
-        if !render_thread.join().is_ok() 
-        {
-            if let Ok(mut health) = render_thread_watchdog.write() 
-            {
-                println!("Render thread panicked!");
-                *health = false;
-            }
-        }
-    });
-
+    
     // Start the event loop -- This is where window events are initially handled
     el.run(move |event, _, control_flow| 
     {
