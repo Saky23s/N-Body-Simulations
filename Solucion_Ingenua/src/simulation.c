@@ -1,3 +1,16 @@
+/** 
+ * @file simulation.c
+ * @author Santiago Salas santiago.salas@estudiante.uam.es
+ * 
+ * File that establishes the structure as well as some necessary functions for an N-body simulation
+ * using the runge-kutta integration method without performing optimizations.
+ * 
+ * This file serves the function of an interface, since it does not implement
+ * the calculate_acceleration function. It is necessary that another file extends this file
+ * and implement the calculate_acceleration function, this allows different implementations 
+ * without having duplicated code of said function.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -9,6 +22,15 @@
 #include "../inc/simulation.h"
 #include "aux.c"
 
+#define FILENAME_MAX_SIZE 256
+
+/**
+ * @struct Simulation
+ * @brief Estructura con la información para la generacion de la simulacion de N cuerpos
+ * 
+ * Declaración de estructura para la simulación, estructurada en la forma
+ * matematicamente correcta para el metodo de runge-kutta.
+ */
 struct _Simulation
 {
     double* bodies;
@@ -33,8 +55,8 @@ int calculate_acceleration(Simulation* simulation, double*k);
 
 Simulation* load_bodies(char* filepath)
 /**
- * This funtion creates a new Simulation and fills it using the starting values from a file
- * @param filepath (char*):  a path to the file with the starting data, must be csv or bin file
+ * This function creates a new Simulation and fills it using the starting values from a file
+ * @param filepath (char*):  a path to the file with the starting data, must be .csv or .bin file
  * @return simulation (Simulation*): a pointer to the new Simulation filled with the data in filepath
  */
 {   
@@ -51,7 +73,7 @@ Simulation* load_bodies(char* filepath)
         return NULL;
     }
     
-    
+    //Get the type of file
     int extention_type = get_extention_type(filepath);
     if(extention_type == EXT_CSV)
     {   
@@ -78,7 +100,7 @@ Simulation* load_bodies(char* filepath)
         simulation->k3 = (double*) malloc ((simulation->n * 6)*sizeof(simulation->k3[0]));
         simulation->k4 = (double*) malloc ((simulation->n * 6)*sizeof(simulation->k4[0]));
         simulation->holder = (double*) malloc ((simulation->n * 6)*sizeof(simulation->holder[0]));
-        
+        //Check for null
         if(simulation->bodies == NULL || simulation->masses == NULL || simulation->k1 == NULL || simulation->k2 == NULL || simulation->k3 == NULL || simulation->k4 == NULL || simulation->holder == NULL)
         {
             return NULL;
@@ -99,7 +121,11 @@ Simulation* load_bodies(char* filepath)
                 continue;
             }
             
-            fscanf(f, "%lf,%lf,%lf,%lf,%lf,%lf,%lf,%*f\n", &simulation->bodies[joffset], &simulation->bodies[joffset+1], &simulation->bodies[joffset+2], &simulation->masses[j], &simulation->bodies[joffset+3], &simulation->bodies[joffset+4], &(simulation->bodies[joffset+5]));
+            if(fscanf(f, "%lf,%lf,%lf,%lf,%lf,%lf,%lf,%*f\n", &simulation->bodies[joffset], &simulation->bodies[joffset+1], &simulation->bodies[joffset+2], &simulation->masses[j], &simulation->bodies[joffset+3], &simulation->bodies[joffset+4], &(simulation->bodies[joffset+5])) == EOF)
+            {
+                printf("Error reading %s\n", filepath);
+                return NULL;
+            }
         }
         //close file
         fclose(f);
@@ -141,7 +167,8 @@ Simulation* load_bodies(char* filepath)
         for (int i = 0; i < simulation->n; i++)
         {   
             int ioffset = i * 6;
-            fread(buffer,sizeof(buffer),1,f);
+            if(fread(buffer,sizeof(buffer),1,f) == 0)
+                return STATUS_ERROR;
 
             simulation->bodies[ioffset] = buffer[0];      //x
             simulation->bodies[ioffset+1] = buffer[1];    //y  
@@ -157,6 +184,7 @@ Simulation* load_bodies(char* filepath)
         fclose(f);
         
     }
+    //If file given is not .csv or .bin we cant read it
     else
     {
         return NULL;
@@ -168,12 +196,12 @@ Simulation* load_bodies(char* filepath)
 
 double run_simulation(Simulation* simulation, double T)
 /**
- * Funtion that will run the simulation for T internal seconds (this means that the ending positions of the bodies will be in time T)
+ * Function that will run the simulation for T internal seconds (this means that the ending positions of the bodies will be in time T)
  *
- * This funtion will calculate the positions of the bodies every in timesteps of 'dt'using the runge-kutta method
- * and store them in data/ as csv files every 'speed' seconds
+ * This function will calculate the positions of the bodies every in timesteps of 'dt' using the runge-kutta method
+ * and store them in Graphics/data/ as bin files every 'speed' seconds
  * 
- * @param simulation (Simulation*) pointer to the simulation object with the initial values       
+ * @param simulation (Simulation*) pointer to the simulation object with the initial values already filled      
  * @param T (double): Internal ending time of the simulation
  * 
  * @return t (double): Real time that the simulation was running or STATUS_ERROR (0) in case of error
@@ -181,17 +209,19 @@ double run_simulation(Simulation* simulation, double T)
 {   
     //Calculate the number of steps we will have to take to get to T
     long int steps = T / dt;
+
     //Calculate the number of timesteps we must do before saving the data
     long int save_step = speed / dt;
-    //Internal variables to keep track of csv files written
+
+    //Internal variables to keep track of files written
     long int file_number = 1;
 
-    char filename[256];
+    //Buffer for filenames
+    char filename[FILENAME_MAX_SIZE];
 
     //Internal variables to measure time 
     struct timeval t_start, t_end;
     gettimeofday ( &t_start, NULL );
-
 
     //Run simulation
     for(long int step = 1; step <= steps; step++)
@@ -203,13 +233,15 @@ double run_simulation(Simulation* simulation, double T)
         //Save data if we must
         if(step % save_step == 0)
         {   
-            sprintf(filename, "../Graphics/data/%ld.bin", file_number);
+            if(snprintf(filename, FILENAME_MAX, "../Graphics/data/%ld.bin", file_number) < 0)
+                return STATUS_ERROR;
+
             if(save_values_bin(simulation, filename) == STATUS_ERROR)
                 return STATUS_ERROR;
             file_number++;
         }
 
-        //Print fancy progress 
+        //Print progress 
         printf("\rIntegrating: step = %ld / %ld", step, steps);
 	    fflush(stdout);
     }
@@ -222,7 +254,7 @@ double run_simulation(Simulation* simulation, double T)
 
 int rk4(Simulation* simulation)
 /**
- * This funtion will calculate the next values of the simulation using the runge-kutta method
+ * This function will calculate the next values of the simulation using the runge-kutta method
  * 
  * @param simulation (Simulation*): a pointer to the simulation
  * @return status (int): STATUS_ERROR (0) in case of error STATUS_OK(1) in case everything when ok
@@ -279,7 +311,7 @@ int rk4(Simulation* simulation)
 
 void free_simulation(Simulation* simulation)
 /**
- * This funtion frees all the memory used by the simulation
+ * This function frees all the memory used by the simulation
  * @param simulation (Simulation*):  a pointer to the simulation being set free
  */
 {   
@@ -297,7 +329,7 @@ void free_simulation(Simulation* simulation)
 
 void print_simulation_values(Simulation* simulation)
 /**
- * This funtion prints all of the valkues used by the simulation
+ * This function prints all of the values used in the simulation, used only for debugging purpuses
  * @param simulation (Simulation*):  a pointer to the simulation being printed
  */
 {
@@ -335,7 +367,7 @@ void print_simulation_values(Simulation* simulation)
 
 int save_values_csv(Simulation* simulation, char* filename)
 /**
- * This funtion will print to the file f the current positions of all the bodies in the simulation as a csv
+ * This function will print to the file f the current positions of all the bodies in the simulation as a csv
  * @param simulation (Simulation*):  a pointer to the simulation being stored
  * @param file (char*) the filepath in which the data is going to be stored as csv
  * @return status (int): STATUS_ERROR (0) in case of error STATUS_OK(1) in case everything when ok
@@ -355,7 +387,8 @@ int save_values_csv(Simulation* simulation, char* filename)
     {      
         //Print body as csv x,y,z
         int ioffset = i*6;
-        fprintf(f, "%lf,%lf,%lf\n", simulation->bodies[ioffset], simulation->bodies[ioffset+1], simulation->bodies[ioffset+2]);
+        if(fprintf(f, "%lf,%lf,%lf\n", simulation->bodies[ioffset], simulation->bodies[ioffset+1], simulation->bodies[ioffset+2]) < 0)
+            return STATUS_ERROR;
     }
 
     fclose(f);
@@ -364,7 +397,7 @@ int save_values_csv(Simulation* simulation, char* filename)
 
 int save_values_bin(Simulation* simulation, char* filename)
 /**
- * This funtion will print to the file f the current positions of all the bodies in the simulation as a bin
+ * This function will print to the file f the current positions of all the bodies in the simulation as a bin
  * @param simulation (Simulation*):  a pointer to the simulation being stored
  * @param file (char*) the filepath in which the data is going to be stored as bin
  * @return status (int): STATUS_ERROR (0) in case of error STATUS_OK(1) in case everything when ok
@@ -391,7 +424,8 @@ int save_values_bin(Simulation* simulation, char* filename)
         buffer[2] =  simulation->bodies[ioffset+2];
         
         //write body as bin x,y,z
-        fwrite(buffer, sizeof(buffer), 1, f);
+        if(fwrite(buffer, sizeof(buffer), 1, f) == 0)
+            return STATUS_ERROR;
     }
 
     fclose(f);
