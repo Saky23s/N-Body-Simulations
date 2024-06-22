@@ -99,7 +99,7 @@ int main(int argc, char **argv )
         while(!feof(input_file))
         {   
             
-            //Read values from csv
+            //Read values from bin
             if(fread(values, sizeof(values), 1, input_file) == 0)
                 break;
             
