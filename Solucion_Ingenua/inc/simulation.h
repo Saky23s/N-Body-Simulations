@@ -4,7 +4,7 @@
 typedef struct _Simulation Simulation;
 #define G 1
 #define dt 0.01
-#define speed 0.05
+#define speed 0.01
 #define softening 0.1
 
 Simulation* load_bodies(char* filepath);

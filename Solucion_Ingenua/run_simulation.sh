@@ -53,5 +53,5 @@ make simulation_${TYPE} >/dev/null
 
 #Run Graphics
 cd ../Graphics/
-cargo run
+./create_mp4.sh
 cd ../Solucion_Ingenua/

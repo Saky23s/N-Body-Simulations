@@ -26,10 +26,15 @@ cd Check/
 
 cuda=false
 Open_MP=false
+secuential_optimizada=false
 
 for arg in "$@" 
 do
     case $arg in
+        -all)
+            cuda=true
+            Open_MP=true
+            ;;
         -co)
             cuda=true
             Open_MP=true
@@ -44,6 +49,9 @@ do
             ;;
         -c) 
             cuda=true
+            ;;
+        -so) 
+            secuential_optimizada=true
             ;;
         *)
             ;;
@@ -118,6 +126,29 @@ do
 
     cd Check/
     ./compare $1 secuential.bin OpenMP.bin >/dev/null
+
+    if [ $? == 1 ];
+    then
+      echo -e "${CLEAR_LINE}${GREEN} PASSED ${NC} $n bodies"
+    else
+      echo -e "${CLEAR_LINE}${RED} FAILED ${NC} $n bodies"
+      exit 0
+    fi
+  elif [ $cuda == false -a $Open_MP == false -a $secuential_optimizada == true ]; then
+    #Delete old data
+    if [ -d ../Graphics/data ]; then
+      rm -f ../Graphics/data/*.csv 2>/dev/null
+      rm -f ../Graphics/data/*.bin 2>/dev/null
+    else
+      mkdir ../Graphics/data 2>/dev/null
+    fi
+
+    ./simulacion_optimizada_secuencial 1 ../Starting_Configurations/bin_files/random.bin >/dev/null
+
+    cp ../Graphics/data/1.bin Check/optimizada_secuential.bin >/dev/null
+
+    cd Check/
+    ./compare $1 secuential.bin optimizada_secuential.bin >/dev/null
 
     if [ $? == 1 ];
     then
