@@ -1,3 +1,12 @@
+/** 
+ * @file aux.c
+ * @author Santiago Salas santiago.salas@estudiante.uam.es
+ * 
+ * File that contains helper funtions that are used in all of the 
+ * implementations of the n body simulation using this method
+ * 
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 
