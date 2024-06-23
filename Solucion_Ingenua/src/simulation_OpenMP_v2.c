@@ -163,7 +163,7 @@ Simulation* load_bodies(char* filepath)
         {   
             int ioffset = i * 3;
             if(fread(buffer,sizeof(buffer),1,f) == 0)
-                return STATUS_ERROR;
+                return NULL;
                 
             simulation->positions[ioffset] = buffer[0];     //x
             simulation->positions[ioffset+1] = buffer[1];   //y
@@ -448,7 +448,8 @@ double run_simulation(Simulation* simulation, double T)
     struct timeval t_start, t_end;
     gettimeofday ( &t_start, NULL );
 
-
+    printf("Simulating with OpenMP\n");
+    
     //Run simulation
     for(long int step = 1; step <= steps; step++)
     {

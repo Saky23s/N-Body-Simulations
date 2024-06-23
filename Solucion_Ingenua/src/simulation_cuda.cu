@@ -8,9 +8,20 @@
 #include "../inc/simulation.h"
 #include "aux.c"
 
+//Macros to correctly access multidimensional arrays that has been flatten 
 #define B(n, size_j, cord, i, j, pointer) pointer[(n * size_j * cord) + (i * size_j) + j]
 #define S(size_i, size_j, cord, i, j, pointer) pointer[(size_i * size_j * cord) + (size_j * i) + j]
 
+#define FILENAME_MAX_SIZE 256
+
+/**
+ * @struct Simulation
+ * @brief Structure with the information for the generation of the N body simulation
+ *
+ * Structure declaration for the simulation, structured in the form
+ * that the data is optimized to minimize cache misses in the CPU
+ * and with all the data needed to use the GPU to do the calculations
+ */
 struct _Simulation
 {   
     //Bodies variables
@@ -45,8 +56,6 @@ struct _Simulation
 
 } _Simulation;
 
-
-
 //Internal helpers
 int simulation_allocate_memory(Simulation* simulation);
 int rk4(Simulation* simulation); 
@@ -54,12 +63,20 @@ int save_values_csv(Simulation* simulation, char* filename);
 int save_values_bin(Simulation* simulation, char* filename);
 int calculate_kernel_size(Simulation* simulation);
 int calculate_acceleration(Simulation* simulation, double*k_position, double* k_velocity);
- 
-__global__ void calculate_acceleration_values_block_reduce(double* d_masses, double* d_position, double* d_block_holder, int n, double d_dt, unsigned int number_of_blocks_i, unsigned int number_of_blocks_j);
+
+//Cuda kernels
+__global__ void calculate_acceleration_values_block_reduce(double* d_masses, double* d_position, double* d_block_holder, int n, double d_dt, unsigned int number_of_blocks_j);
 __device__ void calculate_acceleration_values(double* d_masses, double* d_position, double* sdata, int n, double d_dt);
 __device__ void full_block_reduction (double* d_block_holder, double* sdata, int n, unsigned int number_of_blocks_j);
 
+
 #define cudaErrorCheck(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+/**
+ * Function to check errors in CUDA. 
+ * 
+ * Extracted from StackOverflow 
+ * @link https://stackoverflow.com/a/14038590
+ */
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
 {
     if (code != cudaSuccess) 
@@ -88,7 +105,6 @@ Simulation* load_bodies(char* filepath)
     {
         return NULL;
     }
-    
     
     int extention_type = get_extention_type(filepath);
     if(extention_type == EXT_CSV)
@@ -121,6 +137,7 @@ Simulation* load_bodies(char* filepath)
         {     
             int j = i - 1;
             int joffset = j*3;
+            
             //read header
             if(i == 0)
             {   
@@ -129,8 +146,12 @@ Simulation* load_bodies(char* filepath)
                 continue;
             }
 
-            fscanf(f, "%lf,%lf,%lf,%lf,%lf,%lf,%lf,%*f\n", &simulation->positions[joffset], &simulation->positions[joffset+1], &simulation->positions[joffset+2], &simulation->masses[j], &simulation->velocity[joffset], &simulation->velocity[joffset+1], &(simulation->velocity[joffset+2]));
-            
+            //Read bodies
+            if(fscanf(f, "%lf,%lf,%lf,%lf,%lf,%lf,%lf,%*f\n", &simulation->positions[joffset], &simulation->positions[joffset+1], &simulation->positions[joffset+2], &simulation->masses[j], &simulation->velocity[joffset], &simulation->velocity[joffset+1], &(simulation->velocity[joffset+2])) == EOF)
+            {
+                printf("Error reading %s\n", filepath);
+                return NULL;
+            }
         }
         //close file
         fclose(f);
@@ -171,7 +192,10 @@ Simulation* load_bodies(char* filepath)
         for (int i = 0; i < simulation->n; i++)
         {   
             int ioffset = i * 3;
-            fread(buffer,sizeof(buffer),1,f);
+
+            if(fread(buffer,sizeof(buffer),1,f) == 0)
+                return NULL;
+
             simulation->positions[ioffset] = buffer[0];     //x
             simulation->positions[ioffset+1] = buffer[1];   //y
             simulation->positions[ioffset+2] = buffer[2];   //z
@@ -191,8 +215,8 @@ Simulation* load_bodies(char* filepath)
     }
     
     //Copy masses to cuda memory
-    cudaMemcpy( simulation->d_masses,  simulation->masses, simulation->n * sizeof(simulation->masses[0]),cudaMemcpyHostToDevice);
-    
+    cudaError_t status = cudaMemcpy( simulation->d_masses,  simulation->masses, simulation->n * sizeof(simulation->masses[0]),cudaMemcpyHostToDevice);
+    cudaErrorCheck(status);
     
 
     //Return simulation
@@ -201,7 +225,7 @@ Simulation* load_bodies(char* filepath)
 
 int simulation_allocate_memory(Simulation* simulation)
 /**
- * Funtion that allocates all of the internal arrays of the simulation
+ * Funtion that allocates all of the internal memory needed for the simulation
  * 
  * @param simulation (Simulation*): pointer to a fresh simulation in which all of the internal pointer still have to be allocated
  * @return status (int): STATUS_ERROR (0) in case of error STATUS_OK(1) in case everything when ok
@@ -298,7 +322,7 @@ void free_simulation(Simulation* simulation)
 
 void print_simulation_values(Simulation* simulation)
 /**
- * This funtion prints all of the valkues used by the simulation
+ * This function prints all of the values used in the simulation, used only for debugging purpuses
  * @param simulation (Simulation*):  a pointer to the simulation being printed
  */
 {
@@ -356,7 +380,8 @@ int save_values_csv(Simulation* simulation, char* filename)
     {      
         //Print body as csv x,y,z
         int ioffset = i*3;
-        fprintf(f, "%lf,%lf,%lf\n", simulation->positions[ioffset], simulation->positions[ioffset+1], simulation->positions[ioffset+2]);
+        if(fprintf(f, "%lf,%lf,%lf\n", simulation->positions[ioffset], simulation->positions[ioffset+1], simulation->positions[ioffset+2]) < 0)
+            return STATUS_ERROR;
     }
 
     fclose(f);
@@ -392,7 +417,8 @@ int save_values_bin(Simulation* simulation, char* filename)
         buffer[2] =  simulation->positions[ioffset+2];
         
         //write body as bin x,y,z
-        fwrite(buffer, sizeof(buffer), 1, f);
+        if(fwrite(buffer, sizeof(buffer), 1, f) == 0)
+            return STATUS_ERROR;
     }
 
     fclose(f);
@@ -419,7 +445,7 @@ double run_simulation(Simulation* simulation, double T)
     //Internal variables to keep track of csv files written
     long int file_number = 1;
 
-    char filename[256];
+    char filename[FILENAME_MAX_SIZE];
 
     //Internal variables to measure time 
     struct timeval t_start, t_end;
@@ -437,7 +463,9 @@ double run_simulation(Simulation* simulation, double T)
         //Save data if we must
         if(step % save_step == 0)
         {   
-            sprintf(filename, "../Graphics/data/%ld.bin", file_number);
+            if(snprintf(filename, FILENAME_MAX, "../Graphics/data/%ld.bin", file_number) < 0)
+                return STATUS_ERROR;
+
             if(save_values_bin(simulation, filename) == STATUS_ERROR)
                 return STATUS_ERROR;
             file_number++;
@@ -519,8 +547,11 @@ int rk4(Simulation* simulation)
 
 int calculate_acceleration(Simulation* simulation, double*k_position, double* k_velocity)
 /**
- * Funtion to calculate the velocity and acceleration of the bodies using the current positions and velocities
- * @param simulation(Simulation*): a pointer to the simulation object we are simulation, in the holder variable the information must be stored as an array of values order as x1,y1,z1,vx1,vz1,vz1,x2,y2,z2,vx2,vz2,vz2...xn,yn,zn,vxn,vzn,vzn
+ * Funtion to calculate the velocity and acceleration of the bodies using the current positions and velocities. It uses a cuda kernel to calculate the values
+ * @param simulation(Simulation*): a pointer to the simulation object we are simulating
+ * @param k_position (double*): Array to store resulting positions of the N bodies. They are stored as follows x1,y1,z1,x2,y2,z2....xn,yn,zn
+ * @param k_velocity (double*): Array to store the resulting velocities of the N bodies. They are stored as follows vx1,vy1,vz1,vx2,vy2,vz2....vxn,vyn,vzn
+ * 
  * @return status (int): STATUS_ERROR (0) in case of error STATUS_OK(1) in case everything when ok
 **/
 {   
@@ -540,16 +571,19 @@ int calculate_acceleration(Simulation* simulation, double*k_position, double* k_
         k_velocity[ioffset+2] = 0.0;
     }
 
-    //Call cuda
+    //Set up memory for cuda
     cudaMemcpy( simulation->d_position,  simulation->holder_position, simulation->n * 3 * sizeof(simulation->holder_position[0]),cudaMemcpyHostToDevice);
     cudaMemset( simulation->d_k_velocity, 0.0, 3 * simulation->n  * simulation->gridDims.y * sizeof(simulation->d_k_velocity[0]));
     
-    calculate_acceleration_values_block_reduce<<<simulation->gridDims, simulation->threadBlockDims, 3 * simulation->threadBlockDims.x * simulation->threadBlockDims.y * sizeof(double)>>>(simulation->d_masses, simulation->d_position, simulation->d_k_velocity ,simulation->n, dt, simulation->gridDims.x, simulation->gridDims.y);
+    //Call cuda
+    calculate_acceleration_values_block_reduce<<<simulation->gridDims, simulation->threadBlockDims, 3 * simulation->threadBlockDims.x * simulation->threadBlockDims.y * sizeof(double)>>>(simulation->d_masses, simulation->d_position, simulation->d_k_velocity ,simulation->n, dt, simulation->gridDims.y);
     cudaError_t status = cudaGetLastError();
     cudaErrorCheck(status);
 
+    //Pass results to cpu
     cudaMemcpy( simulation->block_holder, simulation->d_k_velocity, 3 * simulation->n * simulation->gridDims.y * sizeof(simulation->block_holder[0]), cudaMemcpyDeviceToHost);
     
+    //Aggregate results
     for(int i = 0; i < simulation->n; i++)
     {
         int ioffset = i * 3;
@@ -564,6 +598,14 @@ int calculate_acceleration(Simulation* simulation, double*k_position, double* k_
 }
 
 __device__ void calculate_acceleration_values(double* d_masses, double* d_position, double* sdata, int n, double d_dt)
+/**
+ * Cuda kernel that calculates the acceleration values that each body suffers from every other body
+ * @param d_masses (double*): A cuda array of size n with the masses of each body
+ * @param d_position (double*): A cuda array of size 3n with the current position of all of the bodies stored in the following matter x1,y1,z1,x2,y2,z2...xn,yn,zn
+ * @param sdata (double*): A shared array in which to store all of the acceleration values
+ * @param n (int): the number of bodies
+ * @param d_dt (double): the timestep increment
+ */
 {
     //Get position in the block
     int x = threadIdx.x;
@@ -591,7 +633,7 @@ __device__ void calculate_acceleration_values(double* d_masses, double* d_positi
         S(blockDim.x, blockDim.y, 1, x, y, sdata) = d_dt * h * dy; //Acceleration formula for y
         S(blockDim.x, blockDim.y, 2, x, y, sdata) = d_dt * h * dz; //Acceleration formula for z
     }
-    //Fill with 0 the values we dont
+    //Fill with 0 the remaining values in the array with 0
     else
     {  
         S(blockDim.x, blockDim.y, 0, x, y, sdata) = 0.0;    //x
@@ -600,7 +642,16 @@ __device__ void calculate_acceleration_values(double* d_masses, double* d_positi
     }
     
 }
-__global__ void calculate_acceleration_values_block_reduce(double* d_masses, double* d_position, double* d_block_holder, int n, double d_dt, unsigned int number_of_blocks_i, unsigned int number_of_blocks_j)
+__global__ void calculate_acceleration_values_block_reduce(double* d_masses, double* d_position, double* d_block_holder, int n, double d_dt, unsigned int number_of_blocks_j)
+/**
+ * A cuda kernel that calculate the 3n**2 acceleration values and reduce them to an array of size of 3n * gridDim.y. 
+ * @param d_masses (double*): A cuda array of size n with the masses of each body
+ * @param d_position (double*): A cuda array of size 3n with the current position of all of the bodies stored in the following matter x1,y1,z1,x2,y2,z2...xn,yn,zn
+ * @param d_block_holder (double*): An array where the block-reduced results will be stored. It must be of size 3n * gridDim.y
+ * @param n (int): the number of bodies
+ * @param d_dt (double): the timestep increment
+ * @param number_of_blocks_j (unsigned int): The number of blocks in the j dimension. Used for the block reduction
+ */
 {   
     //Array where all values of this block will be stored
     extern __shared__ double sdata[];
@@ -613,6 +664,10 @@ __global__ void calculate_acceleration_values_block_reduce(double* d_masses, dou
 }
 
 int calculate_kernel_size(Simulation* simulation)
+/**
+ * A simple funtion to calculate the most efficient kernel sizes for this simulation depending of the size of N
+ * @param simulation (Simulation*): a pointer to the simulation
+ */
 {
     if(simulation == NULL)
         return STATUS_ERROR;
@@ -626,7 +681,6 @@ int calculate_kernel_size(Simulation* simulation)
         {
             simulation->threadBlockDims = {x, y, 1} ; //1024 threads per block
             simulation->gridDims = { (unsigned int) ceil(simulation->n/(double) x), (unsigned int) ceil( simulation->n/(double) y), 1 }; 
-            printf("%u, %u\n", simulation->threadBlockDims.x, simulation->threadBlockDims.y);
             return STATUS_OK;
         }
     }
@@ -641,9 +695,14 @@ int calculate_kernel_size(Simulation* simulation)
 }
 
 __device__ void full_block_reduction (double* d_block_holder, double* sdata, int n, unsigned int number_of_blocks_j)
+/**
+ * A cuda kernel that reduces the acceleration values of this block to one for every body in this block
+ * @param d_block_holder (double*): An array where the block-reduced results will be stored. It must be of size 3n * gridDim.y
+ * @param sdata (double*): A shared array in which all of the aceleration values of this block are stored
+ * @param n (int): the number of bodies
+ * @param number_of_blocks_j (unsigned int): The number of blocks in the j dimension.
+ */
 {
-    
-    // each thread loads one element from global to shared mem
     //Get position in the block
     int x = threadIdx.x;
     int y = threadIdx.y;
