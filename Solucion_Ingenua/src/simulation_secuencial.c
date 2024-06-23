@@ -1,3 +1,12 @@
+/** 
+ * @file simulation_secuencial.c
+ * @author Santiago Salas santiago.salas@estudiante.uam.es
+ * 
+ * File that implements the calculate_acceleration function in a secuential matter. 
+ * 
+ * @extends simulation.c
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -32,6 +41,7 @@ int calculate_acceleration(Simulation* simulation, double*k)
         k[ioffset] = dt * simulation->holder[ioffset+3]; //vx
         k[ioffset+1] = dt * simulation->holder[ioffset+4]; //vy
         k[ioffset+2] = dt * simulation->holder[ioffset+5]; //vz
+
         //For all other bodies
         for(int j = 0; j < simulation->n; j++)
         {   
@@ -52,8 +62,6 @@ int calculate_acceleration(Simulation* simulation, double*k)
             k[ioffset+3] += dt * h * dx; //Acceleration formula for x
             k[ioffset+4] += dt * h * dy; //Acceleration formula for y
             k[ioffset+5] += dt * h * dz; //Acceleration formula for z
-
-
         }
     }
     return STATUS_OK;
