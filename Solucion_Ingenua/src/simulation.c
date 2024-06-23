@@ -26,10 +26,10 @@
 
 /**
  * @struct Simulation
- * @brief Estructura con la información para la generacion de la simulacion de N cuerpos
- * 
- * Declaración de estructura para la simulación, estructurada en la forma
- * matematicamente correcta para el metodo de runge-kutta.
+ * @brief Structure with the information for the generation of the N body simulation
+ *
+ * Structure declaration for the simulation, structured in the
+ * mathematically correct structure for the runge-kutta method.
  */
 struct _Simulation
 {

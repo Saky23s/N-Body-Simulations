@@ -1,3 +1,14 @@
+/** 
+ * @file simulation_OpenMP_v2.c
+ * @author Santiago Salas santiago.salas@estudiante.uam.es
+ * 
+* Implements all the functions necessary for the  N body simulation. The difference
+ * with version 1 is that this document implements that the data is store to minimize 
+ * cache fails
+ * 
+ * @extends simulation.c
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -8,6 +19,15 @@
 #include "../inc/simulation.h"
 #include "aux.c"
 
+#define FILENAME_MAX_SIZE 256
+
+/**
+ * @struct Simulation
+ * @brief Structure with the information for the generation of the simulation of N bodies
+ *
+ * Structure declaration for the simulation, structured in the form
+ * that the data is optimized to minimize cache misses 
+ */
 struct _Simulation
 {   
     //Bodies variables
@@ -103,7 +123,11 @@ Simulation* load_bodies(char* filepath)
                 continue;
             }
 
-            fscanf(f, "%lf,%lf,%lf,%lf,%lf,%lf,%lf,%*f\n", &simulation->positions[joffset], &simulation->positions[joffset+1], &simulation->positions[joffset+2], &simulation->masses[j], &simulation->velocity[joffset], &simulation->velocity[joffset+1], &(simulation->velocity[joffset+2]));
+            if(fscanf(f, "%lf,%lf,%lf,%lf,%lf,%lf,%lf,%*f\n", &simulation->positions[joffset], &simulation->positions[joffset+1], &simulation->positions[joffset+2], &simulation->masses[j], &simulation->velocity[joffset], &simulation->velocity[joffset+1], &(simulation->velocity[joffset+2])) == EOF)
+            {
+                printf("Error reading %s\n", filepath);
+                return NULL;
+            }
             
         }
         //close file
@@ -138,7 +162,9 @@ Simulation* load_bodies(char* filepath)
         for (int i = 0; i < simulation->n; i++)
         {   
             int ioffset = i * 3;
-            fread(buffer,sizeof(buffer),1,f);
+            if(fread(buffer,sizeof(buffer),1,f) == 0)
+                return STATUS_ERROR;
+                
             simulation->positions[ioffset] = buffer[0];     //x
             simulation->positions[ioffset+1] = buffer[1];   //y
             simulation->positions[ioffset+2] = buffer[2];   //z
@@ -241,7 +267,7 @@ void free_simulation(Simulation* simulation)
 
 void print_simulation_values(Simulation* simulation)
 /**
- * This funtion prints all of the valkues used by the simulation
+ * This function prints all of the values used in the simulation, used only for debugging purpuses
  * @param simulation (Simulation*):  a pointer to the simulation being printed
  */
 {
@@ -299,7 +325,8 @@ int save_values_csv(Simulation* simulation, char* filename)
     {      
         //Print body as csv x,y,z
         int ioffset = i*3;
-        fprintf(f, "%lf,%lf,%lf\n", simulation->positions[ioffset], simulation->positions[ioffset+1], simulation->positions[ioffset+2]);
+        if(fprintf(f, "%lf,%lf,%lf\n", simulation->positions[ioffset], simulation->positions[ioffset+1], simulation->positions[ioffset+2]) < 0)
+            return STATUS_ERROR;
     }
 
     fclose(f);
@@ -335,7 +362,8 @@ int save_values_bin(Simulation* simulation, char* filename)
         buffer[2] =  simulation->positions[ioffset+2];
         
         //write body as bin x,y,z
-        fwrite(buffer, sizeof(buffer), 1, f);
+        if(fwrite(buffer, sizeof(buffer), 1, f) == 0)
+            return STATUS_ERROR;
     }
 
     fclose(f);
@@ -345,7 +373,10 @@ int save_values_bin(Simulation* simulation, char* filename)
 int calculate_acceleration(Simulation* simulation, double*k_position, double* k_velocity)
 /**
  * Funtion to calculate the velocity and acceleration of the bodies using the current positions and velocities
- * @param simulation(Simulation*): a pointer to the simulation object we are simulation, in the holder variable the information must be stored as an array of values order as x1,y1,z1,vx1,vz1,vz1,x2,y2,z2,vx2,vz2,vz2...xn,yn,zn,vxn,vzn,vzn
+ * @param simulation(Simulation*): a pointer to the simulation object we are simulating
+ * @param k_position (double*): Array to store resulting positions of the N bodies. They are stored as follows x1,y1,z1,x2,y2,z2....xn,yn,zn
+ * @param k_velocity (double*): Array to store the resulting velocities of the N bodies. They are stored as follows vx1,vy1,vz1,vx2,vy2,vz2....vxn,vyn,vzn
+ * 
  * @return status (int): STATUS_ERROR (0) in case of error STATUS_OK(1) in case everything when ok
 **/
 {   
@@ -411,7 +442,7 @@ double run_simulation(Simulation* simulation, double T)
     //Internal variables to keep track of csv files written
     long int file_number = 1;
 
-    char filename[256];
+    char filename[FILENAME_MAX_SIZE];
 
     //Internal variables to measure time 
     struct timeval t_start, t_end;
@@ -428,7 +459,9 @@ double run_simulation(Simulation* simulation, double T)
         //Save data if we must
         if(step % save_step == 0)
         {   
-            sprintf(filename, "../Graphics/data/%ld.bin", file_number);
+            if(snprintf(filename, FILENAME_MAX, "../Graphics/data/%ld.bin", file_number) < 0)
+                return STATUS_ERROR;
+                
             if(save_values_bin(simulation, filename) == STATUS_ERROR)
                 return STATUS_ERROR;
             file_number++;

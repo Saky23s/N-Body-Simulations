@@ -1,3 +1,12 @@
+/** 
+ * @file simulation_OpenMP_v1.c
+ * @author Santiago Salas santiago.salas@estudiante.uam.es
+ * 
+ * File that implements the calculate_acceleration function using OpenMP to calculate the values using all of the CPU cores. 
+ * 
+ * @extends simulation.c
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -12,7 +21,7 @@
 int calculate_acceleration(Simulation* simulation, double*k)
 /**
  * Funtion to calculate the velocity and acceleration of the bodies using the current positions and velocities
- * @param simulation(Simulation*): a pointer to the simulation object we are simulation, in the holder variable the information must be stored as an array of values order as x1,y1,z1,vx1,vz1,vz1,x2,y2,z2,vx2,vz2,vz2...xn,yn,zn,vxn,vzn,vzn
+ * @param simulation (Simulation*): a pointer to the simulation object we are simulating, in the holder variable the information must be stored as an array of values order as x1,y1,z1,vx1,vz1,vz1,x2,y2,z2,vx2,vz2,vz2...xn,yn,zn,vxn,vzn,vzn
  * @return status (int): STATUS_ERROR (0) in case of error STATUS_OK(1) in case everything when ok
 **/
 {   
