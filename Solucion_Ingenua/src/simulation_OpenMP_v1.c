@@ -10,11 +10,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <unistd.h>
-#include <time.h>
-#include <string.h>
-#include <sys/types.h>
-#include <unistd.h>
 #include "../inc/simulation.h"
 #include "simulation.c"
 

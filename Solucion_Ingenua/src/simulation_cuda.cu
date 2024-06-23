@@ -1,9 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <unistd.h>
-#include <time.h>
-#include <string.h>
 #include <sys/time.h>
 #include "../inc/simulation.h"
 #include "aux.c"

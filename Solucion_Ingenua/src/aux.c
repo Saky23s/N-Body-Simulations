@@ -9,7 +9,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <string.h>
 //Helper macrowords
 #ifndef NO_EXT
   #define NO_EXT -1
