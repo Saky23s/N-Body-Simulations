@@ -30,12 +30,15 @@ int main(int argc, char **argv)
     long max_n = atol(argv[1]);
     int step = atoi(argv[2]);
 
+    //Create an empty file
     FILE* output_file = fopen("times.log", "w");
     if(output_file == NULL)
         return STATUS_ERROR;
+    fclose(output_file);
 
     for(long n = 1; n <= max_n; n += step)
-    {   
+    {      
+        
         //Create an starting position for N bodies
         FILE* position_file = fopen("../Starting_Configurations/bin_files/random.bin", "wb");
         if(position_file == NULL)
@@ -71,11 +74,16 @@ int main(int argc, char **argv)
         //Run simulation for 100 seconds
         double t = run_simulation(simulation, 100.0);
         
+        FILE* output_file = fopen("times.log", "a");
+        if(output_file == NULL)
+            return STATUS_ERROR;
+            
         //Store time
         fprintf(output_file, "%ld %lf\n", n, t);
 
         //Free memory
         free(simulation);
+        fclose(output_file);
     }
     fclose(output_file);
     return STATUS_OK;
