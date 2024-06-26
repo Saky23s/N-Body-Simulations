@@ -288,7 +288,7 @@ int simulation_allocate_memory(Simulation* simulation)
     }
     else
     {
-        status = cudaMalloc(&simulation->d_position, simulation->n * sizeof(simulation->d_position[0]));
+        status = cudaMalloc(&simulation->d_position, simulation->n * 3 * sizeof(simulation->d_position[0]));
         cudaErrorCheck(status);
 
         status = cudaMalloc(&simulation->d_k_velocity, simulation->n * simulation->gridDims.x * simulation->gridDims.y * sizeof(simulation->d_k_velocity[0]));
@@ -561,7 +561,7 @@ int rk4(Simulation* simulation)
 
 int calculate_acceleration_together(Simulation* simulation, double*k_position, double* k_velocity)
 /**
- * Funtion to calculate the velocity and acceleration of the bodies using the current positions and velocities. It uses a cuda kernel to calculate the values
+ * Funtion to calculate the velocity and acceleration of the bodies using the current positions and velocities. It uses a cuda kernel to calculate the values of all 3 dimensions at the same time
  * @param simulation(Simulation*): a pointer to the simulation object we are simulating
  * @param k_position (double*): Array to store resulting positions of the N bodies. They are stored as follows x1,y1,z1,x2,y2,z2....xn,yn,zn
  * @param k_velocity (double*): Array to store the resulting velocities of the N bodies. They are stored as follows vx1,vy1,vz1,vx2,vy2,vz2....vxn,vyn,vzn
