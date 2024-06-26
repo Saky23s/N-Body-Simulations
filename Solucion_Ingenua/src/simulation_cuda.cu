@@ -10,6 +10,7 @@
 #define S(size_i, size_j, cord, i, j, pointer) pointer[(size_i * size_j * cord) + (size_j * i) + j]
 
 #define FILENAME_MAX_SIZE 256
+#define MAX_N_KERNEL 4096
 
 /**
  * @struct Simulation
@@ -51,6 +52,9 @@ struct _Simulation
     dim3 threadBlockDims;
     dim3 gridDims;
 
+    //Funtion to be used to calculate acceleration
+    int (*calculate_acceleration)(Simulation* simulation, double*k_position, double* k_velocity);
+
 } _Simulation;
 
 //Internal helpers
@@ -59,8 +63,8 @@ int rk4(Simulation* simulation);
 int save_values_csv(Simulation* simulation, char* filename); 
 int save_values_bin(Simulation* simulation, char* filename);
 int calculate_kernel_size(Simulation* simulation);
-int calculate_acceleration(Simulation* simulation, double*k_position, double* k_velocity);
-
+int calculate_acceleration_together(Simulation* simulation, double*k_position, double* k_velocity);
+int calculate_acceleration_split(Simulation* simulation, double*k_position, double* k_velocity);
 //Cuda kernels
 __global__ void calculate_acceleration_values_block_reduce(double* d_masses, double* d_position, double* d_block_holder, int n, double d_dt, unsigned int number_of_blocks_j);
 __device__ void calculate_acceleration_values(double* d_masses, double* d_position, double* sdata, int n, double d_dt);
@@ -269,14 +273,27 @@ int simulation_allocate_memory(Simulation* simulation)
     status = cudaMalloc(&simulation->d_masses, simulation->n * sizeof(simulation->d_masses[0]));
     cudaErrorCheck(status);
 
-    status = cudaMalloc(&simulation->d_position, simulation->n * 3 * sizeof(simulation->d_position[0]));
-    cudaErrorCheck(status);
+    if(simulation->n <= MAX_N_KERNEL)
+    {
+        status = cudaMalloc(&simulation->d_position, simulation->n * 3 * sizeof(simulation->d_position[0]));
+        cudaErrorCheck(status);
 
-    if(simulation->n <= 32)
-        status = cudaMalloc(&simulation->d_k_velocity, simulation->n * 3 * sizeof(simulation->d_k_velocity[0]));
+        if(simulation->n <= 32)
+            status = cudaMalloc(&simulation->d_k_velocity, simulation->n * 3 * sizeof(simulation->d_k_velocity[0]));
+        else
+            status = cudaMalloc(&simulation->d_k_velocity, simulation->n * simulation->gridDims.x * simulation->gridDims.y * 3 * sizeof(simulation->d_k_velocity[0]));
+        cudaErrorCheck(status);
+
+        simulation->calculate_acceleration = &calculate_acceleration_together;
+    }
     else
-        status = cudaMalloc(&simulation->d_k_velocity, simulation->n * simulation->gridDims.x * simulation->gridDims.y * 3 * sizeof(simulation->d_k_velocity[0]));
-    cudaErrorCheck(status);
+    {
+        status = cudaMalloc(&simulation->d_position, simulation->n * sizeof(simulation->d_position[0]));
+        cudaErrorCheck(status);
+
+        status = cudaMalloc(&simulation->d_k_velocity, simulation->n * simulation->gridDims.x * simulation->gridDims.y * sizeof(simulation->d_k_velocity[0]));
+        cudaErrorCheck(status);
+    }
 
     return STATUS_OK;
 }
@@ -495,7 +512,7 @@ int rk4(Simulation* simulation)
     }
     
     //Calculate k1
-    if(calculate_acceleration(simulation, simulation->k1_position, simulation->k1_velocity) == STATUS_ERROR)
+    if(simulation->calculate_acceleration(simulation, simulation->k1_position, simulation->k1_velocity) == STATUS_ERROR)
         return STATUS_ERROR;
 
     //Calculate simulation.bodies+0.5*k1 to be able to calculate k2
@@ -506,7 +523,7 @@ int rk4(Simulation* simulation)
     }
 
     //Calculate k2
-    if(calculate_acceleration(simulation, simulation->k2_position, simulation->k2_velocity) == STATUS_ERROR)
+    if(simulation->calculate_acceleration(simulation, simulation->k2_position, simulation->k2_velocity) == STATUS_ERROR)
         return STATUS_ERROR;
 
     //Calculate simulation.bodies+0.5*k2 to be able to calculate k3
@@ -517,7 +534,7 @@ int rk4(Simulation* simulation)
     }
 
     //Calculate k3
-    if(calculate_acceleration(simulation, simulation->k3_position, simulation->k3_velocity) == STATUS_ERROR)
+    if(simulation->calculate_acceleration(simulation, simulation->k3_position, simulation->k3_velocity) == STATUS_ERROR)
         return STATUS_ERROR;
 
     //Calculate simulation.bodies+*k3 to be able to calculate k3
@@ -528,7 +545,7 @@ int rk4(Simulation* simulation)
     }
 
     //Calculate k4
-    if(calculate_acceleration(simulation, simulation->k4_position, simulation->k4_velocity) == STATUS_ERROR)
+    if(simulation->calculate_acceleration(simulation, simulation->k4_position, simulation->k4_velocity) == STATUS_ERROR)
         return STATUS_ERROR;
 
     //Update simulation value to simulation.bodies + ((k1 + 2*k2 + 2*k3 + k4) / 6.0)
@@ -542,7 +559,7 @@ int rk4(Simulation* simulation)
 }
 
 
-int calculate_acceleration(Simulation* simulation, double*k_position, double* k_velocity)
+int calculate_acceleration_together(Simulation* simulation, double*k_position, double* k_velocity)
 /**
  * Funtion to calculate the velocity and acceleration of the bodies using the current positions and velocities. It uses a cuda kernel to calculate the values
  * @param simulation(Simulation*): a pointer to the simulation object we are simulating
@@ -593,6 +610,8 @@ int calculate_acceleration(Simulation* simulation, double*k_position, double* k_
     }
     return STATUS_OK;
 }
+
+//int calculate_acceleration_split(Simulation* simulation, double*k_position, double* k_velocity)
 
 __device__ void calculate_acceleration_values(double* d_masses, double* d_position, double* sdata, int n, double d_dt)
 /**
