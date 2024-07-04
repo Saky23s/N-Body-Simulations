@@ -73,7 +73,7 @@ do
   ./generate_random $n >/dev/null
 
   cd ../
-  ./simulation_secuencial 1 ../Starting_Configurations/bin_files/random.bin >/dev/null
+  ./simulation_secuencial 0.1 ../Starting_Configurations/bin_files/random.bin >/dev/null
   cp ../Graphics/data/1.bin Check/secuential.bin >/dev/null
 
   if [ $cuda == true -a $Open_MP == true ]; then
@@ -85,11 +85,11 @@ do
       mkdir ../Graphics/data 2>/dev/null
     fi
 
-    ./simulation_OpenMP 1 ../Starting_Configurations/bin_files/random.bin >/dev/null
+    ./simulation_OpenMP 0.1 ../Starting_Configurations/bin_files/random.bin >/dev/null
 
     cp ../Graphics/data/1.bin Check/OpenMP.bin >/dev/null
 
-    ./simulation_cuda 1 ../Starting_Configurations/bin_files/random.bin >/dev/null
+    ./simulation_cuda 0.1 ../Starting_Configurations/bin_files/random.bin >/dev/null
 
     cp ../Graphics/data/1.bin Check/cuda.bin >/dev/null
 
