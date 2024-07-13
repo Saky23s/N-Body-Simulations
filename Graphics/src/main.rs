@@ -14,10 +14,8 @@ use std::thread;
 use std::{mem, os::raw::c_void, ptr};
 use std::time::Duration;
 use image::{ImageBuffer, Rgb};
-use std::ffi::CStr;
-use std::process;
 use std::io::{self, Write};
-
+use std::env;
 
 mod shader;
 mod util;
@@ -38,6 +36,8 @@ use shader::Shader;
 // initial window size
 const INITIAL_SCREEN_W: u32 = 1920;
 const INITIAL_SCREEN_H: u32 = 1080;
+
+//Boolean to know if we make a mp4 or a window
 
 // Helper functions to make interacting with OpenGL a little bit prettier. 
 
@@ -68,49 +68,49 @@ unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>, colors: &Vec<f32>,
     let mut vao: u32 = 0;
     gl::GenVertexArrays(1, &mut vao as *mut u32);
     gl::BindVertexArray(vao);
-
+    
     // Create position VBO and bind it
     let mut vbo: u32 = 0;
     gl::GenBuffers(1, &mut vbo as *mut u32);
     gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
     gl::BufferData(gl::ARRAY_BUFFER, byte_size_of_array(vertices), pointer_to_array(vertices), gl::STATIC_DRAW);
-
+    
     // Configure position VAP and enable it
     let index = 0;
     gl::VertexAttribPointer(index, 3, gl::FLOAT, gl::FALSE, 0, std::ptr::null());
     gl::EnableVertexAttribArray(index);
-
+    
     // Create color VBO
     let mut col_vbo: u32 = 0;
     gl::GenBuffers(1, &mut col_vbo as *mut u32);
     gl::BindBuffer(gl::ARRAY_BUFFER, col_vbo);
     gl::BufferData(gl::ARRAY_BUFFER, byte_size_of_array(colors), pointer_to_array(colors), gl::STATIC_DRAW);
-
+    
     // Configure color VAP and enable it
     let col_index: u32 = 1;
     gl::VertexAttribPointer(col_index, 4, gl::FLOAT, gl::FALSE, 0, std::ptr::null());
     gl::EnableVertexAttribArray(col_index);
-
+    
     // Create normals VBO and bind it
     let mut normal_vbo: u32 = 0;
     gl::GenBuffers(1, &mut normal_vbo as *mut u32);
     gl::BindBuffer(gl::ARRAY_BUFFER, normal_vbo);
     gl::BufferData(gl::ARRAY_BUFFER, byte_size_of_array(normals), pointer_to_array(normals), gl::STATIC_DRAW);
-
+    
     // Configure normals VAP and enable it
     let normal_index: u32 = 2;
     gl::VertexAttribPointer(normal_index, 3, gl::FLOAT, gl::FALSE, 0, std::ptr::null());
     gl::EnableVertexAttribArray(normal_index);
-
+    
     // Generate IBO and bind it
     let mut ibo: u32 = 0;
     gl::GenBuffers(1, &mut ibo as *mut u32);
     gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ibo);
     gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, byte_size_of_array(indices), pointer_to_array(indices), gl::STATIC_DRAW);
-
+    
     // Return ID of VAO
     return vao;
-
+    
 }
 
 //Apply all trasformations to draw the root scene and to all of its children
@@ -125,15 +125,15 @@ unsafe fn draw_root(node: &scene_graph::SceneNode, shaders: &Shader, view_projec
         let mut view :glm::Mat4  = *view_projection_matrix;
         let mut node_translation: glm::Mat4 = glm::translation(&glm::vec3(node.position[0], node.position[1], node.position[2]));
         node_translation = glm::scale(&node_translation,&node.scale); // Scale first, Translate second
-
-
+        
+        
         let mut reference_point_traslation: glm::Mat4 = glm::translation(&glm::vec3(node.reference_point[0], node.reference_point[1], node.reference_point[2]));
         let mut reference_point_traslation_inverse: glm::Mat4 = glm::translation(&glm::vec3(-node.reference_point[0], -node.reference_point[1], -node.reference_point[2]));
         let mut rotation_x: glm::Mat4 = glm::rotation(node.rotation[0], &glm::vec3(1.0, 0.0, 0.0));
         let mut rotation_y: glm::Mat4 = glm::rotation(node.rotation[1], &glm::vec3(0.0, 1.0, 0.0));
         let mut rotation_z: glm::Mat4 = glm::rotation(node.rotation[2], &glm::vec3(0.0, 0.0, 1.0));
         let mut final_camera_rotation: glm::Mat4 = reference_point_traslation * rotation_x * rotation_y * rotation_z * reference_point_traslation_inverse;
-
+        
         
         trasformation  = trasformation  * node_translation * final_camera_rotation;
         view = view * trasformation;
@@ -149,7 +149,7 @@ unsafe fn draw_root(node: &scene_graph::SceneNode, shaders: &Shader, view_projec
         normal_transform[(2, 0)] = trasformation[(2, 0)];
         normal_transform[(2, 1)] = trasformation[(2, 1)];
         normal_transform[(2, 2)] = trasformation[(2, 2)];
-
+        
         gl::UniformMatrix3fv(shaders.get_uniform_location("normal_transform"), 1, gl::FALSE,normal_transform.as_ptr());
         gl::UniformMatrix4fv(shaders.get_uniform_location("transformation"), 1, gl::FALSE, view.as_ptr());
     }
@@ -180,7 +180,7 @@ unsafe fn draw_sphere(node: &scene_graph::SceneNode, shaders: &Shader, view_proj
         let mut rotation_y: glm::Mat4 = glm::rotation(node.rotation[1], &glm::vec3(0.0, 1.0, 0.0));
         let mut rotation_z: glm::Mat4 = glm::rotation(node.rotation[2], &glm::vec3(0.0, 0.0, 1.0));
         let mut final_camera_rotation: glm::Mat4 = reference_point_traslation * rotation_x * rotation_y * rotation_z * reference_point_traslation_inverse;
-
+        
         
         trasformation  = trasformation  * node_translation * final_camera_rotation;
         view = view * trasformation;
@@ -196,12 +196,12 @@ unsafe fn draw_sphere(node: &scene_graph::SceneNode, shaders: &Shader, view_proj
         normal_transform[(2, 0)] = trasformation[(2, 0)];
         normal_transform[(2, 1)] = trasformation[(2, 1)];
         normal_transform[(2, 2)] = trasformation[(2, 2)];
-
+        
         gl::UniformMatrix3fv(shaders.get_uniform_location("normal_transform"), 1, gl::FALSE,normal_transform.as_ptr());
         gl::UniformMatrix4fv(shaders.get_uniform_location("transformation"), 1, gl::FALSE, view.as_ptr());
         
         //node.print();
-
+        
         gl::BindVertexArray(node.vao_id);
         gl::DrawElements(gl::TRIANGLES, node.index_count, gl::UNSIGNED_INT, std::ptr::null());
     }
@@ -224,7 +224,7 @@ fn fix_buffer(raw: &mut Vec<u8>, width: u32, height:u32) -> Vec<u8>
             clean[clean_index as usize] = raw[raw_index as usize];
             clean[(clean_index+1) as usize] = raw[(raw_index+1) as usize];
             clean[(clean_index+2) as usize] = raw[(raw_index+2) as usize];
-
+            
             j = j + 1;
         }
         i = i + 1;
@@ -235,8 +235,18 @@ fn fix_buffer(raw: &mut Vec<u8>, width: u32, height:u32) -> Vec<u8>
 
 fn main() 
 {
+    //Read arguments
+    let mut window = false;
+    
+    let args: Vec<String> = env::args().collect();
+    if args.len() == 2 && (args[1] == "w" || args[1] == "window")
+    {   
+        window = true;
+    }
+
     // Set up the necessary objects to deal with windows and event handling
     let el = glutin::event_loop::EventLoop::new();
+    let cb = glutin::ContextBuilder::new().with_vsync(true);
     let wb = glutin::window::WindowBuilder::new()
         .with_title("N-Body-Simulation")
         .with_resizable(true)
@@ -244,13 +254,13 @@ fn main()
             INITIAL_SCREEN_W,
             INITIAL_SCREEN_H,
         ));
-
-    let cb = glutin::ContextBuilder::new();
-    let windowed_context = cb.build_windowed(wb, &el).unwrap();
-    
+        
+        let cb = glutin::ContextBuilder::new();
+        let windowed_context = cb.build_windowed(wb, &el).unwrap();
+        
     // Uncomment these in the future for mouse control (Or not)
     // windowed_context.window().set_cursor_grab(true).expect("failed to grab cursor");
-    windowed_context.window().set_visible(false);
+    if window == false {windowed_context.window().set_visible(false);}
 
     // Set up a shared vector for keeping track of currently pressed keys
     let arc_pressed_keys = Arc::new(Mutex::new(Vec::<VirtualKeyCode>::with_capacity(10)));
@@ -336,7 +346,7 @@ fn main()
         
         // Transformation matrixes
         let mut camera_rotation: Vec<f32> = vec![-0.0000010281801,-0.041666705];
-        let mut camera_translation: Vec<f32> = vec![0.008020077,0.0,4.4239545];
+        let mut camera_translation: Vec<f32> = vec![0.008013222,0.0, 3.7572882];
         
         //Set up trasformation variable
         let mut transformation;
@@ -433,7 +443,7 @@ fn main()
             if let Ok(mut new_size) = window_size.lock() 
             {
                 if new_size.2
-                 {  
+                {  
 
                     context.resize(glutin::dpi::PhysicalSize::new(new_size.0, new_size.1));
                     window_aspect_ratio = new_size.0 as f32 / new_size.1 as f32;
@@ -551,34 +561,55 @@ fn main()
                 }  
 
                 }
-            // Draw
-            unsafe { draw_root(&root_node, &shaders, &transformation, &glm::identity()); }
-            
-            //Save buffer as png
-            let buf_size = (width * height * 4) as usize;
-            let mut pixels: Vec<u8> = vec![0; buf_size];
-
-            unsafe {
-                gl::ReadPixels(
-                    0,
-                    0,
-                    width as i32,
-                    height as i32,
-                    gl::RGBA,
-                    gl::UNSIGNED_BYTE,
-                    &pixels[0] as *const u8 as *mut c_void
-                );
+            if window == false
+            {
+                // Draw
+                unsafe { draw_root(&root_node, &shaders, &transformation, &glm::identity()); }
+                
+                //Save buffer as png
+                let buf_size = (width * height * 4) as usize;
+                let mut pixels: Vec<u8> = vec![0; buf_size];
+    
+                unsafe {
+                    gl::ReadPixels(
+                        0,
+                        0,
+                        width as i32,
+                        height as i32,
+                        gl::RGBA,
+                        gl::UNSIGNED_BYTE,
+                        &pixels[0] as *const u8 as *mut c_void
+                    );
+                }
+    
+                //Fix pixel buffer
+                let fixed_pixels = fix_buffer(&mut pixels, width, height);
+                // Save the image as PNG
+                let img = ImageBuffer::<Rgb<u8>, Vec<u8>>::from_raw(width, height, fixed_pixels).unwrap();
+                img.save(format!("img/{:05}.png", t)).unwrap();
+    
+                print!("\rGenerating video {}/{}", t, number_of_pngs);
+                io::stdout().flush().unwrap();
             }
+            else 
+            {
+                let before_draw = std::time::Instant::now();
+                // Draw
+                unsafe { draw_root(&root_node, &shaders, &transformation, &glm::identity()); }
+                let after_draw = std::time::Instant::now();
+                // Compute time passed since the previous frame and since the start of the program
+                let now = std::time::Instant::now();
 
-            //Fix pixel buffer
-            let fixed_pixels = fix_buffer(&mut pixels, width, height);
-            // Save the image as PNG
-            let img = ImageBuffer::<Rgb<u8>, Vec<u8>>::from_raw(width, height, fixed_pixels).unwrap();
-            img.save(format!("img/{:05}.png", t)).unwrap();
+                //If it has not been 1/24 of a second dont show next frame
+                if now.duration_since(prevous_frame_time) < Duration::from_secs_f32(1.0 / 24.0)
+                {   
+                    thread::sleep(Duration::from_secs_f32(1.0 / 24.0)  - now.duration_since(prevous_frame_time));
+                }
 
-            print!("\rGenerating video {}/{}", t, number_of_pngs);
-            io::stdout().flush().unwrap();
-            
+                prevous_frame_time = now;
+                // Display the new color buffer on the display
+                context.swap_buffers().unwrap(); // we use "double buffering" to avoid artifacts
+            }
             //Debuggin stuff
             //println!("{},{}", camera_translation[0],camera_translation[2]);
             //println!("{},{}", camera_rotation[0],camera_rotation[1]);
@@ -592,7 +623,20 @@ fn main()
     // Keep track of the health of the rendering thread
     let render_thread_healthy = Arc::new(RwLock::new(true));
     let render_thread_watchdog = Arc::clone(&render_thread_healthy);
-    
+    if window == true
+    {
+        thread::spawn(move || 
+            {
+                if !render_thread.join().is_ok() 
+                {
+                    if let Ok(mut health) = render_thread_watchdog.write() 
+                    {
+                        println!("Render thread panicked!");
+                        *health = false;
+                    }
+                }
+            });
+    }
     // Start the event loop -- This is where window events are initially handled
     el.run(move |event, _, control_flow| 
     {
