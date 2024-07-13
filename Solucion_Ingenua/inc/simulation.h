@@ -3,8 +3,9 @@
 
 typedef struct _Simulation Simulation;
 #define G 1
+//#define G 6.674299999999999e-08 
 #define dt 0.01
-#define speed 0.01
+#define speed 0.045
 #define softening 0.1
 
 Simulation* load_bodies(char* filepath);
