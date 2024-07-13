@@ -7,6 +7,7 @@ if [ "$#" -lt 2 ]; then
 fi
 
 TYPE="secuencial";
+WINDOW=false
 for arg in "$@" 
 do
     case $arg in
@@ -18,6 +19,9 @@ do
             ;;
         -c)
             TYPE="cuda"
+            ;;
+        -w)
+            WINDOW=true
             ;;
         -h) # Explain arguments
             echo "Usage: $0 <T> <Filepath> {-c -o -s}"
@@ -53,5 +57,9 @@ make simulation_${TYPE} >/dev/null
 
 #Run Graphics
 cd ../Graphics/
-./create_mp4.sh
+if [ "$WINDOW" = true ]; then
+    cargo run w
+else
+    ./create_mp4.sh
+fi
 cd ../Solucion_Ingenua/
