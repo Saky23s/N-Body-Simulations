@@ -1,3 +1,5 @@
 *.jpeg
 *.log
-time_simulations
+time_simulations_secuential
+time_simulations_cuda
+time_simulations_OpenMP
