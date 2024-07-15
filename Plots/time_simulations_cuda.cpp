@@ -3,6 +3,8 @@
 #include <cstdlib>
 #include <ctime>
 
+using namespace std;
+
 #include "../Solucion_Ingenua/inc/simulation.h"
 
 double random_num(double min, double max);
@@ -18,12 +20,13 @@ int main(int argc, char **argv)
     int step = std::atoi(argv[2]);
 
     std::ofstream output_file;
-    output_file.open("times.log");
+    output_file.open("times.log",  ios::out | ios::trunc );
     if(!output_file)
     {
         std::cerr << "Error opening output file\n";
         return STATUS_ERROR;
     }
+    output_file.close();
 
     for(long n = 1; n <= max_n; n += step)
     {   
@@ -63,13 +66,20 @@ int main(int argc, char **argv)
         // Run simulation for 100 seconds
         double t = run_simulation(simulation, 100.0);
         
+        output_file.open("times.log",  ios::out | ios::app );
+        if(!output_file)
+        {
+            std::cerr << "Error opening output file\n";
+            return STATUS_ERROR;
+        }
         // Store time
         output_file << n << " " << t << "\n";
+        output_file.close();
 
         // Free memory
         free_simulation(simulation);
+        
     }
-    output_file.close();
     return STATUS_OK;
 }
 
