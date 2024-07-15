@@ -26,7 +26,6 @@ cd Check/
 
 cuda=false
 Open_MP=false
-secuential_optimizada=false
 
 for arg in "$@" 
 do
@@ -50,9 +49,6 @@ do
         -c) 
             cuda=true
             ;;
-        -so) 
-            secuential_optimizada=true
-            ;;
         *)
             ;;
     esac
@@ -63,35 +59,35 @@ do
   echo -ne "${YELLOW} TESTING ${NC} $n bodies...\r"
   
   #Delete old data
-  if [ -d ../../Graphics/data ]; then
-    rm -f ../../Graphics/data/*.csv >/dev/null
-    rm -f ../../Graphics/data/*.bin >/dev/null
+  if [ -d /dev/shm/data ]; then
+    rm -f /dev/shm/data/*.csv >/dev/null
+    rm -f /dev/shm/data/*.bin >/dev/null
   else
-    mkdir ../../Graphics/data >/dev/null
+    mkdir /dev/shm/data >/dev/null
   fi
 
   ./generate_random $n >/dev/null
 
   cd ../
   ./simulation_secuencial 0.1 ../Starting_Configurations/bin_files/random.bin >/dev/null
-  cp ../Graphics/data/1.bin Check/secuential.bin >/dev/null
+  cp /dev/shm/data/1.bin Check/secuential.bin >/dev/null
 
   if [ $cuda == true -a $Open_MP == true ]; then
     #Delete old data
-    if [ -d ../Graphics/data ]; then
-      rm -f ../Graphics/data/*.csv 2>/dev/null
-      rm -f ../Graphics/data/*.bin 2>/dev/null
+    if [ -d /dev/shm/data ]; then
+      rm -f /dev/shm/data/*.csv 2>/dev/null
+      rm -f /dev/shm/data/*.bin 2>/dev/null
     else
-      mkdir ../Graphics/data 2>/dev/null
+      mkdir /dev/shm/data 2>/dev/null
     fi
 
     ./simulation_OpenMP 0.1 ../Starting_Configurations/bin_files/random.bin >/dev/null
 
-    cp ../Graphics/data/1.bin Check/OpenMP.bin >/dev/null
+    cp /dev/shm/data/1.bin Check/OpenMP.bin >/dev/null
 
     ./simulation_cuda 0.1 ../Starting_Configurations/bin_files/random.bin >/dev/null
 
-    cp ../Graphics/data/1.bin Check/cuda.bin >/dev/null
+    cp /dev/shm/data/1.bin Check/cuda.bin >/dev/null
 
     cd Check/
     ./compare $1 secuential.bin cuda.bin >/dev/null
@@ -113,16 +109,16 @@ do
     fi
   elif [ $cuda == false -a $Open_MP == true ]; then
     #Delete old data
-    if [ -d ../Graphics/data ]; then
-      rm -f ../Graphics/data/*.csv 2>/dev/null
-      rm -f ../Graphics/data/*.bin 2>/dev/null
+    if [ -d /dev/shm/data ]; then
+      rm -f /dev/shm/data/*.csv 2>/dev/null
+      rm -f /dev/shm/data/*.bin 2>/dev/null
     else
-      mkdir ../Graphics/data 2>/dev/null
+      mkdir /dev/shm/data 2>/dev/null
     fi
 
     ./simulation_OpenMP 1 ../Starting_Configurations/bin_files/random.bin >/dev/null
 
-    cp ../Graphics/data/1.bin Check/OpenMP.bin >/dev/null
+    cp /dev/shm/data/1.bin Check/OpenMP.bin >/dev/null
 
     cd Check/
     ./compare $1 secuential.bin OpenMP.bin >/dev/null
@@ -134,41 +130,18 @@ do
       echo -e "${CLEAR_LINE}${RED} FAILED ${NC} $n bodies"
       exit 0
     fi
-  elif [ $cuda == false -a $Open_MP == false -a $secuential_optimizada == true ]; then
+  elif [ $cuda == true -a $Open_MP == true ]; then 
     #Delete old data
-    if [ -d ../Graphics/data ]; then
-      rm -f ../Graphics/data/*.csv 2>/dev/null
-      rm -f ../Graphics/data/*.bin 2>/dev/null
+    if [ -d /dev/shm/data ]; then
+      rm -f /dev/shm/data/*.csv 2>/dev/null
+      rm -f /dev/shm/data/*.bin 2>/dev/null
     else
-      mkdir ../Graphics/data 2>/dev/null
-    fi
-
-    ./simulacion_optimizada_secuencial 1 ../Starting_Configurations/bin_files/random.bin >/dev/null
-
-    cp ../Graphics/data/1.bin Check/optimizada_secuential.bin >/dev/null
-
-    cd Check/
-    ./compare $1 secuential.bin optimizada_secuential.bin >/dev/null
-
-    if [ $? == 1 ];
-    then
-      echo -e "${CLEAR_LINE}${GREEN} PASSED ${NC} $n bodies"
-    else
-      echo -e "${CLEAR_LINE}${RED} FAILED ${NC} $n bodies"
-      exit 0
-    fi
-  else 
-    #Delete old data
-    if [ -d ../Graphics/data ]; then
-      rm -f ../Graphics/data/*.csv 2>/dev/null
-      rm -f ../Graphics/data/*.bin 2>/dev/null
-    else
-      mkdir ../Graphics/data 2>/dev/null
+      mkdir /dev/shm/data 2>/dev/null
     fi
 
     ./simulation_cuda 1 ../Starting_Configurations/bin_files/random.bin >/dev/null
 
-    cp ../Graphics/data/1.bin Check/cuda.bin >/dev/null
+    cp /dev/shm/data/1.bin Check/cuda.bin >/dev/null
 
     cd Check/
     ./compare $1 secuential.bin cuda.bin >/dev/null
