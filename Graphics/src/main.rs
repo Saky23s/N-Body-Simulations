@@ -282,9 +282,9 @@ fn main()
     // Clone a reference to the shared flag for use outside the event loop
     let should_close_clone = should_close.clone();
 
-    let mut number_of_pngs = -1;
+    let mut number_of_pngs = -2;
 
-    let paths = fs::read_dir("./data/").unwrap();
+    let paths = fs::read_dir("/dev/shm/data/").unwrap();
 
     for path in paths 
     {
@@ -346,7 +346,7 @@ fn main()
         
         // Transformation matrixes
         let mut camera_rotation: Vec<f32> = vec![-0.0000010281801,-0.041666705];
-        let mut camera_translation: Vec<f32> = vec![0.008013222,0.0, 3.7572882];
+        let mut camera_translation: Vec<f32> = vec![0.008044068,0.0, 33.0906215];
         
         //Set up trasformation variable
         let mut transformation;
@@ -374,9 +374,9 @@ fn main()
         //Create space to store the bodies nodes
         let mut bodies_vector: Vec<scene_graph::Node> = Vec::new();
         
-        let mut t = 1;
+        let mut t = 0;
         //Read body files
-        let path = "./data/starting_positions.bin";
+        let path = "/dev/shm/data/starting_positions.bin";
         let mut n = 0;
         
         match util::read_starting_data_bin(path) 
@@ -448,7 +448,6 @@ fn main()
                     context.resize(glutin::dpi::PhysicalSize::new(new_size.0, new_size.1));
                     window_aspect_ratio = new_size.0 as f32 / new_size.1 as f32;
                     (*new_size).2 = false;
-                    println!("Resized");
                     unsafe 
                     {
                         gl::Viewport(0, 0, new_size.0 as i32, new_size.1 as i32);
@@ -527,12 +526,17 @@ fn main()
                 //Change the animation values
                 //If the next data file exists
                 t += 1;
-                let path = format!("./data/{}.bin", t);
+                let path = format!("/dev/shm/data/{}.bin", t);
                 //If it does not exist end simulation
                 if util::file_exists(&path) == false
                 {   
                     //Give signal to close
-                    *should_close_clone.lock().unwrap() = true;     
+                    *should_close_clone.lock().unwrap() = true; 
+                    if window == false
+                    {
+                        println!("");
+                        std::process::exit(0);
+                    } 
                     return;          
                 }
                 //Read new positions of bodies to animate
