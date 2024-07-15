@@ -35,10 +35,10 @@ int main(int argc, char **argv )
             return -1;
         }
 
-        FILE* output_file = fopen("../Graphics/data/starting_positions.bin", "w");
+        FILE* output_file = fopen("/dev/shm/data/starting_positions.bin", "w");
         if(output_file == NULL)
         {
-            printf("Error opening output file ../Graphics/data/starting_positions.bin\n");
+            printf("Error opening output file /dev/shm/data/starting_positions.bin\n");
             return -1;
         }
 
@@ -85,10 +85,10 @@ int main(int argc, char **argv )
             return -1;
         }
 
-        FILE* output_file = fopen("../Graphics/data/starting_positions.bin", "wb");
+        FILE* output_file = fopen("/dev/shm/data/starting_positions.bin", "wb");
         if(output_file == NULL)
         {
-            printf("Error opening output file ../Graphics/data/starting_positions.bin\n");
+            printf("Error opening output file /dev/shm/data/starting_positions.bin\n");
             return -1;
         }
 
