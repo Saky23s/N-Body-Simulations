@@ -20,15 +20,20 @@ do
         -c)
             TYPE="cuda"
             ;;
+        
+        -h)
+            TYPE="hermite"
+            ;;
         -w)
             WINDOW=true
             ;;
-        -h) # Explain arguments
+        -help) # Explain arguments
             echo "Usage: $0 <T> <Filepath> {-c -o -s}"
             echo "-c: Run with cuda"
             echo "-o: Run with OpenMP"
             echo "-s (default): Run secuential"
-            echo "-h: Show help"
+            echo "-w: Show result as a window"
+            echo "-help: Show help"
             exit
             ;;
         *)
@@ -37,11 +42,11 @@ do
 done
 
 #Delete old data
-if [ -d ../Graphics/data ]; then
-  rm -f ../Graphics/data/*.csv
-  rm -f ../Graphics/data/*.bin
+if [ -d /dev/shm/data ]; then
+  rm -f /dev/shm/data/*.csv
+  rm -f /dev/shm/data/*.bin
 else
-  mkdir ../Graphics/data
+  mkdir /dev/shm/data
 fi
 
 #Create starting configuration data

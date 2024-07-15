@@ -9,12 +9,12 @@ CUDA_LDLIBS+=-lm
 SRC_FILES:=src/main.c 
 CUDA_SRC_FILES:=src/main.cpp
 
-all: simulation_secuencial simulation_OpenMP simulation_cuda 
+all: simulation_secuencial simulation_OpenMP simulation_cuda
 
 simulation_secuencial: $(SRC_FILES) src/simulation_secuencial.c
 	$(CC) $^ $(CFLAGS) $(LDLIBS) -o $@ $(LDLIBS)
 
-simulation_OpenMP: $(SRC_FILES) src/simulation_OpenMP_v2.c
+simulation_OpenMP: $(SRC_FILES) src/simulation_OpenMP.c
 	$(CC) $^ $(CFLAGS) $(LDLIBS) -o $@ $(LDLIBS)
 
 simulation_cuda: $(CUDA_SRC_FILES) src/simulation_cuda.cu 
