@@ -85,7 +85,7 @@ int main(int argc, char **argv)
         free(simulation);
         fclose(output_file);
     }
-    fclose(output_file);
+    
     return STATUS_OK;
 }
 
