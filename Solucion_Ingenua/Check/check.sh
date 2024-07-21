@@ -130,7 +130,7 @@ do
       echo -e "${CLEAR_LINE}${RED} FAILED ${NC} $n bodies"
       exit 0
     fi
-  elif [ $cuda == true -a $Open_MP == true ]; then 
+  elif [ $cuda == true -a $Open_MP == false ]; then 
     #Delete old data
     if [ -d /dev/shm/data ]; then
       rm -f /dev/shm/data/*.csv 2>/dev/null

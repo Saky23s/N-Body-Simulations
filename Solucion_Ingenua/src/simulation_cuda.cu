@@ -317,12 +317,12 @@ __device__ void calculate_acceleration_values(double* d_masses, double* d_positi
         double dy = d_position[joffset+1] - d_position[ioffset+1]; //ry body 2 - ry body 1
         double dz = d_position[joffset+2] - d_position[ioffset+2]; //rz body 2 - rz body 1
         
-        double r = dx * dx + dy * dy + dz * dz + softening * softening; //distance magnitud with some softening
-        double h = ((G * d_masses[j]) / (pow(r, 1.5))); //Acceleration formula
+        double r = pow(dx * dx + dy * dy + dz * dz + softening * softening, -0.5); //distance magnitud with some softening
+        r = (G * d_masses[j] * r * r * r ); //Acceleration formula
 
-        S(blockDim.x, blockDim.y, 0, x, y, sdata) =  h * dx; //Acceleration formula for x
-        S(blockDim.x, blockDim.y, 1, x, y, sdata) =  h * dy; //Acceleration formula for y
-        S(blockDim.x, blockDim.y, 2, x, y, sdata) =  h * dz; //Acceleration formula for z
+        S(blockDim.x, blockDim.y, 0, x, y, sdata) =  r * dx; //Acceleration formula for x
+        S(blockDim.x, blockDim.y, 1, x, y, sdata) =  r * dy; //Acceleration formula for y
+        S(blockDim.x, blockDim.y, 2, x, y, sdata) =  r * dz; //Acceleration formula for z
     }
     //Fill with 0 the remaining values in the array with 0
     else

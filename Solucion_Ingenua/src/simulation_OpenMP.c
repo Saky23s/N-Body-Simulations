@@ -121,6 +121,7 @@ int leapfrog(Simulation* simulation)
     if(calculate_acceleration(simulation) == STATUS_ERROR)
         return STATUS_ERROR;
 
+    #pragma omp parallel for
     for(int i = 0; i < simulation->n; i++)
     {
         int ioffset = i * 3;
@@ -141,6 +142,7 @@ int leapfrog(Simulation* simulation)
     if(calculate_acceleration(simulation) == STATUS_ERROR)
         return STATUS_ERROR;
 
+    #pragma omp parallel for
     for(int i = 0; i < simulation->n; i++)
     {
         int ioffset = i * 3;
@@ -194,12 +196,12 @@ int calculate_acceleration(Simulation* simulation)
             double dy = simulation->positions[joffset+1] - simulation->positions[ioffset+1]; //ry body 2 - ry body 1
             double dz = simulation->positions[joffset+2] - simulation->positions[ioffset+2]; //rz body 2 - rz body 1
             
-            double r = dx * dx + dy * dy + dz * dz + softening * softening; //distance magnitud with some softening
-            double h = (G * simulation->masses[j] / pow(r, 1.5)); //Acceleration formula
+            double r = 1.0 / sqrt(dx * dx + dy * dy + dz * dz + softening * softening); //distance magnitud with some softening
+            r = (G * simulation->masses[j] * r * r * r ); //Acceleration formula
 
-            simulation->acceleration[ioffset] += h * dx; //Acceleration formula for x
-            simulation->acceleration[ioffset+1] += h * dy; //Acceleration formula for y
-            simulation->acceleration[ioffset+2] += h * dz; //Acceleration formula for z
+            simulation->acceleration[ioffset] += r * dx; //Acceleration formula for x
+            simulation->acceleration[ioffset+1] += r * dy; //Acceleration formula for y
+            simulation->acceleration[ioffset+2] += r * dz; //Acceleration formula for z
         }
     }
 
