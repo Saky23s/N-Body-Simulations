@@ -28,11 +28,12 @@ int main(int argc, char **argv)
     }
     output_file.close();
 
+    char pos_f_path[] = "../Starting_Configurations/bin_files/random.bin";
     for(long n = 1; n <= max_n; n += step)
     {   
         
         //Create an starting position for N bodies
-        FILE* position_file = fopen("../Starting_Configurations/bin_files/random.bin", "wb");
+        FILE* position_file = fopen(pos_f_path, "wb");
         if(position_file == NULL)
         {
             printf("Error opening output file\n");
@@ -56,7 +57,7 @@ int main(int argc, char **argv)
         fclose(position_file);
         
         // Create a simulation for that file
-        Simulation *simulation = load_bodies("../Starting_Configurations/bin_files/random.bin");
+        Simulation *simulation = load_bodies(pos_f_path);
         if(simulation == nullptr) 
         {
             std::cout << "Error while loading simulation\n";

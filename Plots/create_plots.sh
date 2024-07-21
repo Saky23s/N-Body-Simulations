@@ -27,11 +27,11 @@ do
 done
 
 #Delete old data just for safety
-if [ -d ./dev/shm/data ]; then
-  rm -f ./dev/shm/data/*.csv
-  rm -f ./dev/shm/data/*.bin
+if [ -d /dev/shm/data ]; then
+  rm -f /dev/shm/data/*.csv
+  rm -f /dev/shm/data/*.bin
 else
-  mkdir ./dev/shm/data
+  mkdir /dev/shm/data
 fi
 
 ./time_simulations_${TYPE} $1 $2
