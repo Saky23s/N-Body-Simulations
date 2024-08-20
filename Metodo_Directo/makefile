@@ -2,7 +2,7 @@ CC:=gcc
 CFLAGS+=-std=c11 -fopenmp
 LDLIBS+=-lm -pthread
 
-CUDA_CC:=nvcc
+CUDA_CC:=nvcc 
 CUDA_FLAGS+=
 CUDA_LDLIBS+=-lm 
 
@@ -17,7 +17,7 @@ simulation_secuencial: $(SRC_FILES) src/simulation_secuencial.c
 simulation_OpenMP: $(SRC_FILES) src/simulation_OpenMP.c
 	$(CC) $^ $(CFLAGS) $(LDLIBS) -o $@ $(LDLIBS)
 
-simulation_cuda: $(CUDA_SRC_FILES) src/simulation_cuda_test.cu 
+simulation_cuda: $(CUDA_SRC_FILES) src/simulation_cuda.cu
 	$(CUDA_CC) $^ $(CUDA_FLAGS) $(CUDA_LDLIBS) -o $@ $(CUDA_LDLIBS)
 
 clean:

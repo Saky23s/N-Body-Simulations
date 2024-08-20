@@ -1,8 +1,8 @@
 #!/bin/bash 
 
 # Check al least the two must have parameters are provided
-if [ "$#" -lt 2 ]; then
-    echo "Usage: $0 <Max_N> <Steps>"
+if [ "$#" -lt 3 ]; then
+    echo "Usage: $0 <Start_N> <Max_N> <Steps>"
     exit 1
 fi
 
@@ -34,7 +34,7 @@ else
   mkdir /dev/shm/data
 fi
 
-./time_simulations_${TYPE} $1 $2
+./time_simulations_${TYPE} $1 $2 $3
 
 #plot results
 gnuplot> load 'times.p'

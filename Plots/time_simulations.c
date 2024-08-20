@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "../Solucion_Ingenua/inc/simulation.h"
+#include "../Metodo_Directo/inc/simulation.h"
 
 double random_num(double min, double max);
 
@@ -11,6 +11,7 @@ int main(int argc, char **argv)
  * Small code to generete a log file with the times
  * it takes to simulation to execute a 100 second simulation 
  * with diferent number of bodies
+ * @param Starting_N (long): The starting size of N to test
  * @param Max_N (long): The maximum size of N to test
  * @param steps (int): The increment between timing
  * @return 'times.log' will have all the results stored at the end
@@ -22,13 +23,14 @@ int main(int argc, char **argv)
  * and t is the time it took to excute
 */
 {
-    if(argc != 3)
+    if(argc != 4)
     {
-        printf("Usage: %s <Max_N> <Steps>\n", argv[0]);
+        printf("Usage: %s <Starting_N> <Max_N> <Steps>\n", argv[0]);
         return STATUS_ERROR;
     }
-    long max_n = atol(argv[1]);
-    int step = atoi(argv[2]);
+    long n = atol(argv[1]);
+    long max_n = atol(argv[2]);
+    int step = atoi(argv[3]);
 
     //Create an empty file
     FILE* output_file = fopen("times.log", "w");
@@ -36,7 +38,7 @@ int main(int argc, char **argv)
         return STATUS_ERROR;
     fclose(output_file);
 
-    for(long n = 1; n <= max_n; n += step)
+    for(; n <= max_n; n += step)
     {      
         
         //Create an starting position for N bodies

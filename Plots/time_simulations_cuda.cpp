@@ -5,19 +5,35 @@
 
 using namespace std;
 
-#include "../Solucion_Ingenua/inc/simulation.h"
+#include "../Metodo_Directo/inc/simulation.h"
 
 double random_num(double min, double max);
 
 int main(int argc, char **argv)
+/**
+ * Small code to generete a log file with the times
+ * it takes to simulation to execute a 100 second simulation 
+ * with diferent number of bodies
+ * @param Starting_N (long): The starting size of N to test
+ * @param Max_N (long): The maximum size of N to test
+ * @param steps (int): The increment between timing
+ * @return 'times.log' will have all the results stored at the end
+ * of the excution, in format:
+ * 
+ * n t
+ * 
+ * where N is the number of bodies that simulation had
+ * and t is the time it took to excute
+*/
 {
-    if(argc != 3)
+    if(argc != 4)
     {
-        std::cout << "Usage: " << argv[0] << " <Max_N> <Steps>\n";
+        std::cout << "Usage: " << argv[0] << " <Starting_N> <Max_N> <Steps>\n";
         return STATUS_ERROR;
     }
-    long max_n = std::atol(argv[1]);
-    int step = std::atoi(argv[2]);
+    long n = std::atol(argv[1]);
+    long max_n = std::atol(argv[2]);
+    int step = std::atoi(argv[3]);
 
     std::ofstream output_file;
     output_file.open("times.log",  ios::out | ios::trunc );
@@ -29,7 +45,7 @@ int main(int argc, char **argv)
     output_file.close();
 
     char pos_f_path[] = "../Starting_Configurations/bin_files/random.bin";
-    for(long n = 1; n <= max_n; n += step)
+    for(; n <= max_n; n += step)
     {   
         
         //Create an starting position for N bodies

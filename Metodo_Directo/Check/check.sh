@@ -144,7 +144,7 @@ do
     cp /dev/shm/data/1.bin Check/cuda.bin >/dev/null
 
     cd Check/
-    ./compare $1 secuential.bin cuda.bin >/dev/null
+    ./compare $1 secuential.bin cuda.bin
 
     if [ $? == 1 ];
     then

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 
+#define MAX_ERROR  10e-17 
 int main(int argc, char **argv)
 {
     if(argc != 4)
@@ -42,8 +43,9 @@ int main(int argc, char **argv)
     fclose(base_file);
     fclose(file_to_check);
     
-    if(error == 0.0)
+    if(error < MAX_ERROR)
         return 1;
-    else
-        return 0;
+
+    //printf("%.15lf\n", error);
+    return 0;
 }

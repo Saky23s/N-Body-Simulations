@@ -55,7 +55,7 @@ make >/dev/null
 ./graphic_starting_position $2
 
 #Run simulation
-cd ../Solucion_Ingenua/
+cd ../Metodo_Directo/
 rm simulation_${TYPE} >/dev/null
 make simulation_${TYPE} >/dev/null
 ./simulation_${TYPE} $1 $2
@@ -67,4 +67,4 @@ if [ "$WINDOW" = true ]; then
 else
     ./create_mp4.sh
 fi
-cd ../Solucion_Ingenua/
+cd ../Metodo_Directo/
