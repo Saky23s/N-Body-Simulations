@@ -234,7 +234,9 @@ fn fix_buffer(raw: &mut Vec<u8>, width: u32, height:u32) -> Vec<u8>
 }
 
 fn main() 
-{
+{   
+    env::set_var("WINIT_UNIX_BACKEND", "x11");
+
     //Read arguments
     let mut window = false;
     
