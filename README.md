@@ -1,6 +1,7 @@
 # Three-Body-Problem
 Este software requiere `cargo`, `rustc`, `gcc` y un sistema operativo linux.
 Estas dependencias se pueden descargar automaticamente ejecutando:
+
     sudo ./install_dependencies.sh
 
 Para ejecutar cuda se necesita `nvcc`.
