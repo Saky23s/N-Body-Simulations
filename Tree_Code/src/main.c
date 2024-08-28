@@ -8,7 +8,7 @@
  * runs the simulation and frees it when its done.
  * 
  * @param T (double): The internal time that the simulation should last measured in seconds
- * @param filepath (string): The filepath to the starting configuration file of the simulation, must be a csv or bin file
+ * @param filepath (char *): The filepath to the starting configuration file of the simulation, must be a csv or bin file
  */
 
 #include <stdio.h>
@@ -30,11 +30,8 @@ int main(int argc, char **argv )
     //Create and run simulation for T seconds
     if(run_simulation(strtod(argv[1], NULL), argv[2]) == STATUS_ERROR)
     {
-        //free_simulation(simulation);
         return STATUS_ERROR;
     }
     
-    //Free memory
-    //free_simulation(simulation);
     return STATUS_OK;
 }

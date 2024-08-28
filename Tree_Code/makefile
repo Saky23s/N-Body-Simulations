@@ -1,6 +1,6 @@
 ##############################################################################
 # MAKEFILE: compile and link treecode executable files                       #
-# Copyright (c) 2001 by Joshua E. Barnes, Honolulu, Hawai`i.                 #
+# author Santiago Salas santiago.salas@estudiante.uam.es					 #
 ##############################################################################
 
 ########################################################################
@@ -13,9 +13,9 @@ OPTFLAG = -O3
 
 ########################################################################
 # Secuential treecode:
-treecode_secuencial: src/main.c treecode.o treeload.o treegrav.o libZeno.a
+treecode_secuencial: src/main.c treecode.o treeload.o treegrav.o
 	$(CC) $(LDFLAGS) -o treecode_secuencial \
-	  src/main.c treecode.o treeload.o treegrav.o libZeno.a -lm
+	  src/main.c treecode.o treeload.o treegrav.o -lm
 
 treecode.o: src/treecode.c inc/treedefs.h
 	$(CC) $(CCFLAGS) -c src/treecode.c
@@ -28,16 +28,6 @@ treegrav.o: src/treegrav.c inc/treedefs.h
 
 
 ########################################################################
-# Zeno library:
-libZeno.a: clib.o 
-	ar ruv libZeno.a clib.o 
-
-clib.o: src/clib.c inc/stdinc.h
-	$(CC) $(CCFLAGS) -c src/clib.c
-
-
-########################################################################
 clean:
 	rm *.o 
-	rm libZeno.a
 	rm treecode_secuencial

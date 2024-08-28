@@ -1,5 +1,5 @@
 /** 
- * @file vectmath.c
+ * @file vectmath.h
  * @copyright (c) 2001 by Joshua E. Barnes, Honolulu, Hawai`i. 
  * 
  * include file for vector/matrix operations.

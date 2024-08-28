@@ -7,7 +7,7 @@
  * system work with our existing framework   
  * 
  * This document combines the I-O functions as well as the main functions for the algorthim
- * @author Santiago Salas santiago.salas@estudiante.uam.es             
+ * @author (modifications) Santiago Salas santiago.salas@estudiante.uam.es             
  **/
 
 #include "../inc/stdinc.h"
@@ -20,7 +20,7 @@
 #include <sys/time.h>
 #include <string.h>
 
-/* Prototypes for local procedures. */
+//Internal helpers
 local int treeforce(void);
 local int leapfrog(void);
 int load_bodies(char* filename);
@@ -92,6 +92,8 @@ double run_simulation(double T, char* filename)
     gettimeofday ( &t_end, NULL );
     printf("\nSimulation completed in %lf seconds\n",  WALLTIME(t_end) - WALLTIME(t_start));
 
+    freetree(bodytab);
+
     return WALLTIME(t_end) - WALLTIME(t_start);                                 
 }
 
@@ -110,10 +112,12 @@ local int treeforce(void)
         Update(p) = TRUE;                       
     
     //Construct tree structure
-    maketree(bodytab, nbody);
+    if(maketree(bodytab, nbody) == STATUS_ERROR)
+        return STATUS_ERROR;
 
     //Calculate the forces
-    gravcalc();                                
+    if(gravcalc() == STATUS_ERROR)
+        return STATUS_ERROR;                               
 
     return STATUS_OK;
 }
@@ -181,8 +185,9 @@ int load_bodies(char* filename)
             return STATUS_ERROR;
         
         //Memory allocation for the arrays
-        bodytab = (bodyptr) allocate(nbody * sizeof(body));
-
+        bodytab = (bodyptr) calloc(nbody * sizeof(body), 1);
+        if(bodytab == NULL)
+            return STATUS_ERROR;
         //go back to the begining of file
         rewind(f);
 
@@ -227,7 +232,9 @@ int load_bodies(char* filename)
         nbody = size / (sizeof(double) * 8); 
 
         //Memory allocation for the arrays
-        bodytab = (bodyptr) allocate(nbody * sizeof(body));
+        bodytab = (bodyptr) calloc(nbody * sizeof(body), 1);
+        if(bodytab == NULL)
+            return STATUS_ERROR;
         
         //Buffer for one body
         double buffer[8];
@@ -238,13 +245,13 @@ int load_bodies(char* filename)
             if(fread(buffer,sizeof(buffer),1,f) == 0)
                 return STATUS_ERROR;
                 
-            Pos(p)[0] = buffer[0];     //x
-            Pos(p)[1] = buffer[1];   //y
-            Pos(p)[2] = buffer[2];   //z
-            Mass(p) = buffer[3];              //mass
-            Vel(p)[0] = buffer[4];      //vx
-            Vel(p)[1] = buffer[5];    //vy
-            Vel(p)[2] = buffer[6];    //vz
+            Pos(p)[0] = buffer[0];  //x
+            Pos(p)[1] = buffer[1];  //y
+            Pos(p)[2] = buffer[2];  //z
+            Mass(p) = buffer[3];    //mass
+            Vel(p)[0] = buffer[4];  //vx
+            Vel(p)[1] = buffer[5];  //vy
+            Vel(p)[2] = buffer[6];  //vz
 
             //Buffer[7] is radius, currently useless for data, only useful for graphics
             Type(p) = BODY;
@@ -283,7 +290,7 @@ int save_values_bin(int file_number)
     {
         if (fwrite((void *)  Pos(p), sizeof(real), NDIM, f) != NDIM)
         {
-            error("out_vector: fwrite failed\n");
+            printf("out_vector: fwrite failed\n");
             return STATUS_ERROR;
         }
     }

@@ -1,11 +1,13 @@
 /** 
- * @file treecode.c
+ * @file treeload.c
  * @copyright (c) 1999 by Joshua E. Barnes, Tokyo, JAPAN
  * 
- * routines to create tree.
+ * Routines to create tree.
  * 
  * Modifies the original work of Joshua E. Barnes to remove features
  * that are not required for this investigation 
+ * 
+ * Added free of memory
  * 
  * @author (modifications) Santiago Salas santiago.salas@estudiante.uam.es             
  **/
@@ -16,20 +18,22 @@
 #include "../inc/treedefs.h"
 
 //Internal helpers
-local int newtree(void);                       /* flush existing tree      */
-local cellptr makecell(void);                   /* create an empty cell     */
-local int expandbox(bodyptr, int);             /* set size of root cell    */
-local int loadbody(bodyptr);                   /* load body into tree      */
-local int subindex(bodyptr, cellptr);           /* compute subcell index    */
-local int hackcofm(cellptr, real, int);        /* find centers of mass     */
-local int setrcrit(cellptr, vector, real);     /* set cell's crit. radius  */
-local int threadtree(nodeptr, nodeptr);        /* set next and more links  */
-local nodeptr freecell = NULL;                  /* list of free cells       */
+local int newtree(void);
+local cellptr makecell(void);
+local int expandbox(bodyptr, int);
+local int loadbody(bodyptr);
+local int subindex(bodyptr, cellptr);
+local int hackcofm(cellptr, real, int);
+local int setrcrit(cellptr, vector, real);
+local int threadtree(nodeptr, nodeptr);
+local nodeptr freecell = NULL;
 
-#define MAXLEVEL  32                            /* max height of tree       */
-
-local int cellhist[MAXLEVEL];                   /* count cells by level     */
-local int subnhist[MAXLEVEL];                   /* count subnodes by level  */
+//Max height of the tree
+#define MAXLEVEL 32 
+//Count cells by level
+local int cellhist[MAXLEVEL];
+//Count subnodes by level
+local int subnhist[MAXLEVEL];
 
 int maketree(bodyptr btab, int nbody)
 /**
@@ -121,14 +125,9 @@ local int newtree(void)
 
     //Flush existing tree
     root = NULL;                                
-    ncell = 0;   
 
     return STATUS_OK;                               
 }
-
-/*
- * MAKECELL: return pointer to free cell.
- */
 
 local cellptr makecell(void)
 /**
@@ -142,8 +141,12 @@ local cellptr makecell(void)
     int i;
 
     //If there is no free cells left allocate a new one
-    if (freecell == NULL)                       
-        c = (cellptr) allocate(sizeof(cell));
+    if (freecell == NULL)  
+    {
+        c = (cellptr) calloc(sizeof(cell), 1);
+        if(c == NULL)
+            return NULL;
+    }                     
     //Else take the free cell in front of the list
     else 
     {
@@ -159,8 +162,6 @@ local cellptr makecell(void)
     for (i = 0; i < NSUB; i++)
         Subp(c)[i] = NULL;
     
-    ncell++;
-
     //Return pointer to cell
     return c;
 }
@@ -228,12 +229,15 @@ local int loadbody(bodyptr p)
             DOTPSUBV(dist2, distv, Pos(p), Pos(Subp(q)[qind]));
             if (dist2 == 0.0)
             {
-                error("loadbody: two bodies have same position\n");
+                printf("loadbody: two bodies have same position\n");
                 return STATUS_ERROR;
             }
 
             //Allocate a new cell
             c = makecell();
+            if(c == NULL)
+                return STATUS_ERROR;
+
             //Init mid point and offset from parent
             for (k = 0; k < NDIM; k++)
             {
@@ -349,7 +353,7 @@ local int hackcofm(cellptr p, real psize, int lev)
         //If its actually outside the cell
         if (cmpos[k] < Pos(p)[k] - psize/2 || Pos(p)[k] + psize/2 <= cmpos[k])
         {
-            error("hackcofm: tree structure error\n");
+            printf("hackcofm: tree structure error\n");
             return STATUS_ERROR;
         }
     }
@@ -443,4 +447,44 @@ local int threadtree(nodeptr p, nodeptr n)
     return STATUS_OK;
 }
 
+
+void freetree(bodyptr btab)
+/**
+ * Funtion to free allocated memory
+ * @param btab (bodyptr): Pointer to array of bodies
+ */
+{
+    nodeptr p;
+    nodeptr q;
+
+    //Starting with the root
+    p = (nodeptr) root; 
+    //Scan tree
+    while (p != NULL) 
+    {
+        //If we found a cell                     
+        if (Type(p) == CELL) 
+        {    
+            //Save existing list and add it to the front   
+            Next(p) = freecell;
+            freecell = p;
+            p = More(p);
+
+        }
+        //If we found a free it and skip it
+        else
+        {
+            p = Next(p);
+        }
+    }
+
+    
+    while((p = (nodeptr) freecell) != NULL)
+    {
+        freecell = Next(p);
+        free((cellptr) p);
+    }
+
+    free(btab);
+}
 

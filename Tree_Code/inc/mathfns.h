@@ -1,18 +1,22 @@
-/****************************************************************************/
-/* MATHFNS.H: header file for system and zeno math functions; assumes role  */
-/* of math.h.  Defines real-valued synonyms for system functions (eg, rsqrt */
-/* for square root) and zeno functions (eg, seval)
-/* Copyright (c) 2001 by Joshua E. Barnes, Honolulu, Hawai`i.               */
-/****************************************************************************/
+/** 
+ * @file mathfns.h
+ * @copyright (c) 2001 by Joshua E. Barnes, Honolulu, Hawai`i. 
+ * 
+ * Defines real-valued synonyms for system functions (eg, rsqrt 
+ * for square root) and zeno functions (eg, seval)
+ * 
+ * This document has been modified lightly to remove funtions not needed in this investigations
+ * and to adapt it to work with our existing framework
+ * 
+ * @author (modifications) Santiago Salas santiago.salas@estudiante.uam.es             
+ **/
 
 #ifndef _mathfns_h
 #define _mathfns_h
 
 #include <math.h>
 
-/*
- * System math functions.  Use double-precision versions 
- */
+//System math functions.  Use double-precision versions 
 #define rsqrt    sqrt
 #define rcbrt    cbrt
 #define rsin     sin
@@ -33,14 +37,7 @@
 #define rfloor   floor
 #define rceil    ceil
 
-/*
- * Functions in mathfns.c; invoked just like those above.
- */
+//Square as two multiplications
 #define rsqr(x) x * x
-
-
-
-
-
 
 #endif  /* ! _mathfns_h */
