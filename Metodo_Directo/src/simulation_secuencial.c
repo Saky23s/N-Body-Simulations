@@ -12,7 +12,7 @@
 #include <math.h>
 #include <sys/time.h>
 #include "../inc/simulation.h"
-#include "aux.c"
+#include "../../Aux/aux.c"
 
 #define FILENAME_MAX_SIZE 256
 
@@ -35,7 +35,7 @@ struct _Simulation
     double half_dt;
 } _Simulation;
 
-//Internal helpers
+
 int simulation_allocate_memory(Simulation* simulation);
 int leapfrog(Simulation* simulation);
 int save_values_csv(Simulation* simulation, char* filename); 
@@ -62,7 +62,6 @@ double run_simulation(Simulation* simulation, double T)
     long int save_step = speed / dt;
     //Internal variables to keep track of csv files written
     long int file_number = 1;
-
     char filename[FILENAME_MAX_SIZE];
 
     //double starting_energy = checkEnergy(simulation);
@@ -139,7 +138,7 @@ int leapfrog(Simulation* simulation)
         simulation->positions[ioffset+2] = simulation->positions[ioffset+2] + simulation->velocity[ioffset+2] * dt;
     }
 
-    //Calculate the acceleratuions with half step velocity and full step position
+    //Calculate the accelerations with half step velocity and full step position
     if(calculate_acceleration(simulation) == STATUS_ERROR)
         return STATUS_ERROR;
 

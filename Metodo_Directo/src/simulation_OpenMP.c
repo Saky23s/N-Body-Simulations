@@ -11,7 +11,7 @@
 #include <math.h>
 #include <sys/time.h>
 #include "../inc/simulation.h"
-#include "aux.c"
+#include "../../Aux/aux.c"
 
 #define FILENAME_MAX_SIZE 256
 
