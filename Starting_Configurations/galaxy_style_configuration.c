@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include "../Metodo_Directo/inc/simulation.h"
 
 #define M_PI acos(-1.0)
 
@@ -34,8 +35,8 @@ int main(int argc, char **argv )
     double values[8];
     for (int i = 0; i < n; i++) 
     {
-        double curve = 2 * M_PI * (rand() / (double) RAND_MAX);
-        double radius = 20 * (rand() / (double) RAND_MAX);
+        double curve = 2* M_PI * (rand() / (double) RAND_MAX);
+        double radius = 30 * (rand() / (double) RAND_MAX);
         double x = (cos(curve) - sin(curve));
         double y = (cos(curve) + sin(curve));
 
@@ -44,7 +45,7 @@ int main(int argc, char **argv )
         values[1] = radius * y; //y
         values[2] =  0.02 * ((rand() /(double) RAND_MAX) - 0.5); //z
 
-        double vel = sqrt(n / radius) * 0.15;
+        double vel = sqrt((G * n) / radius) *0.025;
 
         values[3] = 1.0;  //mass
 
@@ -52,7 +53,7 @@ int main(int argc, char **argv )
         values[5] = x * vel;  //vy
         values[6] = 0.0;  //vz
 
-        values[7] = 1.0/log2(n);              //radius
+        values[7] = 1/log2(n);              //radius
 
         fwrite(values, sizeof(values), 1, position_file);
     }
