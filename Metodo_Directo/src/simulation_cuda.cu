@@ -11,7 +11,7 @@
 #include <math.h>
 #include <sys/time.h>
 #include "../inc/simulation.h"
-#include "aux.c"
+#include "../../Aux/aux.c"
 
 //Macros to correctly access multidimensional arrays that has been flatten 
 #define B(n, size_j, cord, i, j, pointer) pointer[(n * size_j * cord) + (i * size_j) + j]
