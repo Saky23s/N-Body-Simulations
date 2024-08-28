@@ -115,11 +115,6 @@ typedef struct
 #define speed 0.1
 
 /***************************************/
-//error checking
-#define STATUS_ERROR 0
-#define STATUS_OK 1
-
-/***************************************/
 //Global funtions
 //Funtion to construct tree
 int maketree(bodyptr, int);

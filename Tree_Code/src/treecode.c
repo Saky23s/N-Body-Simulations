@@ -67,7 +67,7 @@ double run_simulation(double T, char* filename)
     gettimeofday ( &t_start, NULL );
     
     treeforce();
-
+    
     //Run simulation
     for (int step = 0; step < steps; step++)
     {

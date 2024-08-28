@@ -54,7 +54,7 @@ int gravcalc(void)
     vector rmid;
 
     //Estimate list length
-    actlen = FACTIVE * 216 * tdepth; 
+    actlen = FACTIVE * 400 * tdepth; 
 
     //Allow for opening angle
     actlen = actlen * rpow(theta, -2.5); 
