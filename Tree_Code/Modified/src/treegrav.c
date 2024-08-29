@@ -41,9 +41,9 @@ void gravcalc(void)
     vector rmid;
 
     actlen = FACTIVE * 216 * tdepth;            /* estimate list length     */
-#if !defined(QUICKSCAN)
+
     actlen = actlen * rpow(theta, -2.5);        /* allow for opening angle  */
-#endif
+
     active = (nodeptr *) allocate(actlen * sizeof(nodeptr));
     interact = (cellptr) allocate(actlen * sizeof(cell));
     cpustart = cputime();                       /* record time, less alloc  */
@@ -103,30 +103,6 @@ local void walktree(nodeptr *aptr, nodeptr *nptr, cellptr cptr, cellptr bptr,
     }
 }
 
-#if defined(QUICKSCAN)
-
-/*
- * ACCEPT: quick criterion accepts any cell not touching cell p.
- */
-
-local bool accept(nodeptr c, real psize, vector pmid)
-{
-    real p15, dk;
-
-    p15 = ((real) 1.5) * psize;                 /* premultiply cell size    */
-    dk = Pos(c)[0] - pmid[0];                   /* find distance to midpnt  */
-    if (ABS(dk) > p15)                          /* if c does not touch p    */
-        return (TRUE);                          /* then accept interaction  */
-    dk = Pos(c)[1] - pmid[1];                   /* find distance to midpnt  */
-    if (ABS(dk) > p15)                          /* if c does not touch p    */
-        return (TRUE);                          /* then accept interaction  */
-    dk = Pos(c)[2] - pmid[2];                   /* find distance to midpnt  */
-    if (ABS(dk) > p15)                          /* if c does not touch p    */
-        return (TRUE);                          /* then accept interaction  */
-    return (FALSE);                             /* else do not accept it    */
-}
-
-#else
 
 /*
  * ACCEPT: standard criterion accepts cell if its critical radius
@@ -153,8 +129,6 @@ local bool accept(nodeptr c, real psize, vector pmid)
     return (dsq > Rcrit2(c) &&                  /* test angular criterion   */
               dmax > ((real) 1.5) * psize);     /* and adjacency criterion  */
 }
-
-#endif
 
 /*
  * WALKSUB: test next level's active list against subnodes of p.

@@ -69,9 +69,6 @@ local void treeforce(void)
 
 local void stepsystem(void)
 {
-#if defined(USEFREQ)
-    real dt = 1.0 / freq;                    /* set basic time-step      */
-#endif
     bodyptr p;
 
     for (p = bodytab; p < bodytab+nbody; p++) { /* loop over all bodies     */

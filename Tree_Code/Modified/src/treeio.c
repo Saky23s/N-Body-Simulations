@@ -51,25 +51,12 @@ void inputdata(void)
 void startoutput(void)
 {
     printf("\n%s\n", headline);                 /* print headline, params   */
-#if defined(USEFREQ)
-    printf("\n%8s%10s%10s", "nbody", "freq", "eps");
-#else
-    printf("\n%8s%10s%10s", "nbody", "dt", "eps");
-#endif
-#if !defined(QUICKSCAN)
-    printf("%10s", "theta");
-#endif
-#if defined(USEFREQ)
-    printf("%10s%10s%10s\n", "usequad", "freqout", "tstop");
-    printf("%8d%10.2f%10.4f", nbody, freq, eps);
-#else
-    printf("%10s%10s%10s\n", "usequad", "speed", "tstop");
-    printf("%8d%10.5f%10.4f", nbody, dt, eps);
-#endif
-#if !defined(QUICKSCAN)
-    printf("%10.2f", theta);
-#endif
 
+    printf("\n%8s%10s%10s", "nbody", "dt", "eps");
+    printf("%10s", "theta");
+    printf("%10s%10s\n", "speed", "tstop");
+    printf("%8d%10.5f%10.4f", nbody, dt, eps);
+    printf("%10.2f", theta);
     printf("%10.5f%10.4f\n", speed, tstop);
 }
 
@@ -103,11 +90,8 @@ void output(void)
     printf("    %8.3f%8.5f%8.5f%8.5f%8.5f%8.5f%8.5f%8.3f\n",
            tnow, ABS(etot[0]), etot[1], -etot[2], -etot[1]/etot[2],
            cmabs, amabs, cputime());
-#if defined(USEFREQ)
-    teff = tnow + (freq > 0 ? 0.125/freq : 0);  /* anticipate slightly...   */
-#else
+
     teff = tnow + dt/8;                      /* anticipate slightly...   */
-#endif
     if (teff >= tout)     /* time for data output?    */
         outputdata();
 }

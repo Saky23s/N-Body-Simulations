@@ -208,13 +208,13 @@ local void hackcofm(cellptr p, real psize, int lev)
         if (cmpos[k] < Pos(p)[k] - psize/2 ||   /* if actually outside cell */
               Pos(p)[k] + psize/2 <= cmpos[k])
             error("hackcofm: tree structure error\n");
-#if !defined(QUICKSCAN)
+
     setrcrit(p, cmpos, psize);                  /* set critical radius      */
-#endif
+
     SETV(Pos(p), cmpos);                        /* and center-of-mass pos   */
 }
 
-#if !defined(QUICKSCAN)
+
 
 /*
  * SETRCRIT: assign critical radius for cell p, using center-of-mass
@@ -234,7 +234,6 @@ local void setrcrit(cellptr p, vector cmpos, real psize)
     }
 }
 
-#endif
 
 /*
  * THREADTREE: do a recursive treewalk starting from node p,
