@@ -24,11 +24,6 @@ global real freq;                       /* basic integration frequency      */
 
 global real freqout;                    /* data output frequency            */
 
-#else
-
-global real dtime;                      /* basic integration timestep       */
-
-global real dtout;                      /* data output timestep             */
 
 #endif
 

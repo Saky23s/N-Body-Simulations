@@ -52,7 +52,7 @@ do
 
     cd ../Original/
     ./treecode  >/dev/null
-    cp /dev/shm/data/5.bin ../Check/original.bin >/dev/null
+    cp /dev/shm/data/1.bin ../Check/original.bin >/dev/null
 
     #Delete old data
     if [ -d /dev/shm/data ]; then
@@ -63,9 +63,9 @@ do
     fi
 
     cd ../Modified/
-    ./treecode  >/dev/null
+    ./treecode 2.0 "../../Starting_Configurations/bin_files/plummer.bin" >/dev/null
 
-    cp /dev/shm/data/5.bin ../Check/modified.bin >/dev/null
+    cp /dev/shm/data/1.bin ../Check/modified.bin >/dev/null
 
     cd ../Check/
     ./compare $1 original.bin modified.bin >/dev/null
@@ -77,6 +77,9 @@ do
       echo -e "${CLEAR_LINE}${RED} FAILED ${NC} $n bodies"
       exit 0
     fi
+
+    rm original.bin 
+    rm modified.bin
 done
 
 exit 1

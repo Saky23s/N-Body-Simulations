@@ -78,19 +78,19 @@ typedef struct {
 #  define global extern
 #endif
 
+#define theta 1.0
+#define eps 0.025
+#define dt 0.01
+#define speed 0.1
+
 /*
  * Parameters for tree construction and force calculation.
  */
-
-#if !defined(QUICKSCAN)
-global real theta;                      /* force accuracy parameter         */
-#endif
 
 global string options;                  /* various option keywords          */
 
 global bool usequad;                    /* use quadrupole corrections       */
 
-global real eps;                        /* density smoothing parameter      */
 
 /*
  * Tree construction.

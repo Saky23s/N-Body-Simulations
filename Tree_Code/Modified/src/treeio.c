@@ -55,7 +55,7 @@ void startoutput(void)
 #if defined(USEFREQ)
     printf("\n%8s%10s%10s", "nbody", "freq", "eps");
 #else
-    printf("\n%8s%10s%10s", "nbody", "dtime", "eps");
+    printf("\n%8s%10s%10s", "nbody", "dt", "eps");
 #endif
 #if !defined(QUICKSCAN)
     printf("%10s", "theta");
@@ -64,8 +64,8 @@ void startoutput(void)
     printf("%10s%10s%10s\n", "usequad", "freqout", "tstop");
     printf("%8d%10.2f%10.4f", nbody, freq, eps);
 #else
-    printf("%10s%10s%10s\n", "usequad", "dtout", "tstop");
-    printf("%8d%10.5f%10.4f", nbody, dtime, eps);
+    printf("%10s%10s%10s\n", "usequad", "speed", "tstop");
+    printf("%8d%10.5f%10.4f", nbody, dt, eps);
 #endif
 #if !defined(QUICKSCAN)
     printf("%10.2f", theta);
@@ -73,7 +73,7 @@ void startoutput(void)
 #if defined(USEFREQ)
     printf("%10s%10.2f%10.4f\n", usequad ? "true" : "false", freqout, tstop);
 #else
-    printf("%10s%10.5f%10.4f\n", usequad ? "true" : "false", dtout, tstop);
+    printf("%10s%10.5f%10.4f\n", usequad ? "true" : "false", speed, tstop);
 #endif
     if (! strnull(options))                     /* print options, if any    */
         printf("\n\toptions: %s\n", options);
@@ -112,7 +112,7 @@ void output(void)
 #if defined(USEFREQ)
     teff = tnow + (freq > 0 ? 0.125/freq : 0);  /* anticipate slightly...   */
 #else
-    teff = tnow + dtime/8;                      /* anticipate slightly...   */
+    teff = tnow + dt/8;                      /* anticipate slightly...   */
 #endif
     if (teff >= tout)     /* time for data output?    */
         outputdata();
@@ -127,7 +127,7 @@ void outputdata(void)
     save_values_bin(filenumber);
     filenumber++;
     printf("\n\tdata output to file %d at time %f\n", filenumber, tnow);
-    tout += dtout;                              /* schedule next output     */
+    tout += speed;                              /* schedule next output     */
 
 }
 

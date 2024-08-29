@@ -47,8 +47,8 @@ void maketree(bodyptr btab, int nbody)
     expandbox(btab, nbody);                     /* and expand cell to fit   */
     for (p = btab; p < btab+nbody; p++)         /* loop over all bodies     */
         loadbody(p);                            /* insert each into tree    */
-    bh86 = scanopt(options, "bh86");            /* set flags for alternate  */
-    sw94 = scanopt(options, "sw94");            /* ...cell opening criteria */
+    bh86 = FALSE;            /* set flags for alternate  */
+    sw94 = FALSE;            /* ...cell opening criteria */
     if (bh86 && sw94)                           /* can't have both at once  */
         error("maketree: incompatible options bh86 and sw94\n");
     tdepth = 0;                                 /* init count of levels     */

@@ -38,6 +38,13 @@ typedef short int bool;
 #define FALSE ((bool) 0)
 #endif
 
+//error checking
+#define STATUS_ERROR 0
+#define STATUS_OK 1
+
+// Convert 'struct timeval' into seconds in double prec. floating point
+#define WALLTIME(t) ((double)(t).tv_sec + 1e-6 * (double)(t).tv_usec)
+
 /*
  * BYTE: name a handy chunk of bits.
  */
@@ -138,5 +145,7 @@ void eprintf(string, ...);              /* print message to stderr          */
 bool scanopt(string, string);           /* scan options for keyword         */
 
 stream stropen(string, string);         /* arguments are much like fopen    */
+
+double run_simulation(double T, char* filename);
 
 #endif  /* ! _stdinc_h */
