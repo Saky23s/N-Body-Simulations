@@ -26,25 +26,30 @@ int main(int argc, string argv[])
     infile = argv[2];
     tstop = strtod(argv[1], NULL);
 
-    startrun();                                 /* get params & input data  */
+    usequad = FALSE;
+
+    options = "";
+        
+    inputdata();                        /* then read inital data    */
+    
+    rsize = 1.0;                            /* start root w/ unit cube  */
+    nstep = 0;                              /* begin counting steps     */
+    tout = tnow;                            /* schedule first output    */
+    
     startoutput();                              /* activate output code     */
-    if (nstep == 0) {                           /* if data just initialized */
+    if (nstep == 0) 
+    {
         treeforce();                            /* do complete calculation  */
         output();                               /* and report diagnostics   */
     }
-#if defined(USEFREQ)
-    if (freq != 0.0)                            /* if time steps requested  */
-        while (tstop - tnow > 0.01/freq) {      /* while not past tstop     */
-            stepsystem();                       /* advance step by step     */
-            output();                           /* and output results       */
-        }
-#else
+
     if (dt != 0.0)                           /* if time steps requested  */
-        while (tstop - tnow > 0.01 * dt) {   /* while not past tstop     */
+        while (tstop - tnow > 0.01 * dt) 
+        {   /* while not past tstop     */
             stepsystem();                       /* advance step by step     */
             output();                           /* and output results       */
         }
-#endif
+
     return (0);                                 /* end with proper status   */
 }
 
@@ -86,21 +91,5 @@ local void stepsystem(void)
     tnow = tnow + dt;                        /* finally, advance time    */
 }
 
-/*
- * STARTRUN: startup hierarchical N-body code.
- */
 
-local void startrun(void)
-{
-    usequad = FALSE;
-
-    options = "";
-        
-    inputdata();                        /* then read inital data    */
-    
-    rsize = 1.0;                            /* start root w/ unit cube  */
-    nstep = 0;                              /* begin counting steps     */
-    tout = tnow;                            /* schedule first output    */
-     
-}
 

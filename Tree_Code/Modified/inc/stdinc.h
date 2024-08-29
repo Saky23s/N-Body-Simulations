@@ -147,5 +147,4 @@ bool scanopt(string, string);           /* scan options for keyword         */
 stream stropen(string, string);         /* arguments are much like fopen    */
 
 double run_simulation(double T, char* filename);
-
 #endif  /* ! _stdinc_h */
