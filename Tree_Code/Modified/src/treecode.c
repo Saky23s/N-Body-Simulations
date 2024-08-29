@@ -6,7 +6,6 @@
 #include "../inc/stdinc.h"
 #include "../inc/mathfns.h"
 #include "../inc/vectmath.h"
-#include "../inc/getparam.h"
 #define global                                  /* don't default to extern  */
 #include "../inc/treecode.h"
 
@@ -35,7 +34,7 @@ int main(int argc, string argv[])
     rsize = 1.0;                            /* start root w/ unit cube  */
     nstep = 0;                              /* begin counting steps     */
     tout = tnow;                            /* schedule first output    */
-    
+
     startoutput();                              /* activate output code     */
     if (nstep == 0) 
     {

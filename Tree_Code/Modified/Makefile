@@ -89,14 +89,11 @@ treegrav_q.o: src/treegrav.c inc/treedefs.h
 ########################################################################
 # Zeno library:
 
-libZeno.a: clib.o getparam.o mathfns.o
-	ar ruv libZeno.a clib.o getparam.o mathfns.o
+libZeno.a: clib.o mathfns.o
+	ar ruv libZeno.a clib.o mathfns.o
 
 clib.o: src/clib.c inc/stdinc.h
 	$(CC) $(CCFLAGS) -D$(PREC) -c src/clib.c
-
-getparam.o: src/getparam.c inc/stdinc.h inc/getparam.h
-	$(CC) $(CCFLAGS) -D$(PREC) -c src/getparam.c
 
 mathfns.o: src/mathfns.c inc/stdinc.h inc/mathfns.h
 	$(CC) $(CCFLAGS) -D$(PREC) -c src/mathfns.c

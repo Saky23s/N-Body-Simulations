@@ -7,7 +7,6 @@
 #include "../inc/stdinc.h"
 #include "../inc/mathfns.h"
 #include "../inc/vectmath.h"
-#include "../inc/getparam.h"
 #include "../inc/treecode.h"
 #include "../../../Aux/aux.c"
 #include <sys/types.h>

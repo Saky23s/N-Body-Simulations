@@ -4,7 +4,6 @@
 /****************************************************************************/
 
 #include "../inc/stdinc.h"
-#include "../inc/getparam.h"
 #include <sys/types.h>
 #include <sys/times.h>
 #include <sys/param.h>
@@ -21,8 +20,7 @@ void *allocate(int nb)
 
     mem = calloc(nb, 1);                /* allocate, also clearing memory   */
     if (mem == NULL)
-        error("allocate in %s: not enuf memory (%d bytes)\n",
-              getargv0(), nb);
+        error("allocate: not enuf memory (%d bytes)\n", nb);
     return (mem);
 }
 
@@ -35,7 +33,7 @@ double cputime(void)
     struct tms buffer;
 
     if (times(&buffer) == -1)
-        error("cputime in %s: times() call failed\n", getargv0());
+        error("cputime: times() call failed\n");
     return ((buffer.tms_utime + buffer.tms_stime) / (60.0 * HZ));
 }
 
@@ -91,44 +89,4 @@ bool scanopt(string opt, string key)
             continue;
     }
     return (FALSE);                     /* indicate failure                 */
-}
-
-/*
- * STROPEN: open a STDIO stream like fopen, with these extensions: (1)
- * existing files cannot be opend for writing unless mode == "w!"  or
- * mode == "a", (2) names of form "-" map to stdin/stdout, depending on
- * mode, and (3) names of the form "-num" up a stream to read/write file
- * descriptor num.
- */
-
-stream stropen(string name, string mode)
-{
-    bool inflag;
-    int fds;
-    stream res;
-    struct stat buf;
-
-    inflag = streq(mode, "r");
-    if (name[0] == '-') {
-        if (streq(name, "-")) {
-            fds = dup(fileno(inflag ? stdin : stdout));
-            if (fds == -1)
-                error("stropen in %s: cannot dup %s\n",
-                      getargv0(), inflag ? "stdin" : "stdout");
-        } else
-            fds = atoi(&name[1]);
-        res = fdopen(fds, streq(mode, "w!") ? "w" : mode);
-        if (res == NULL)
-            error("stropen in %s: cannot open f.d. %d for %s\n",
-                  getargv0(), fds, inflag ? "input" : "output");
-    } else {
-        if (streq(mode, "w") && stat(name, &buf) == 0)
-            error("stropen in %s: file \"%s\" already exists\n",
-                  getargv0(), name);
-        res = fopen(name, streq(mode, "w!") ? "w" : mode);
-        if (res == NULL)
-            error("stropen in %s: cannot open file \"%s\" for %s\n",
-                  getargv0(), name, inflag ? "input" : "output");
-    }
-    return (res);
 }
