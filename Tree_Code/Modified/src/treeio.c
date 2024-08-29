@@ -1,6 +1,6 @@
 /****************************************************************************/
 /* TREEIO.C: I/O routines for hierarchical N-body code. Public routines:    */
-/* inputdata(), startoutput(), output(), savestate(), restorestate().       */
+/* inputdata(), startoutput(), output()       */
 /* Copyright (c) 2001 by Joshua E. Barnes, Honolulu, Hawai`i.               */
 /****************************************************************************/
 
@@ -20,12 +20,6 @@
 
 local void outputdata(void);                    /* write N-body data        */
 local void diagnostics(void);                   /* eval N-body diagnostics  */
-local void in_int(stream, int *);               /* input integer value      */
-local void in_real(stream, real *);             /* input real value         */
-local void in_vector(stream, vector);           /* input vector of reals    */
-local void out_int(stream, int);                /* output integer value     */
-local void out_real(stream, real);              /* output real value        */
-local void out_vector(stream, vector);          /* output vector of reals   */
 int save_values_bin(int file_number);
 int load_bodies(char* filename);
 
@@ -83,8 +77,6 @@ void startoutput(void)
 #endif
     if (! strnull(options))                     /* print options, if any    */
         printf("\n\toptions: %s\n", options);
-    if (! strnull(savefile))                    /* was state file given?    */
-        savestate(savefile);                    /* save initial data        */
 }
 
 /*
@@ -124,8 +116,6 @@ void output(void)
 #endif
     if (teff >= tout)     /* time for data output?    */
         outputdata();
-    if (! strnull(savefile))                    /* was state file given?    */
-        savestate(savefile);                    /* save data for restart    */
 }
 
 /*
@@ -137,11 +127,8 @@ void outputdata(void)
     save_values_bin(filenumber);
     filenumber++;
     printf("\n\tdata output to file %d at time %f\n", filenumber, tnow);
-    #if defined(USEFREQ)
-    tout += 1.0 / freqout;                      /* schedule next output     */
-    #else
-        tout += dtout;                              /* schedule next output     */
-    #endif
+    tout += dtout;                              /* schedule next output     */
+
 }
 
 /*
@@ -186,193 +173,7 @@ local void diagnostics(void)
     DIVVS(cmvel, cmvel, mtot);
 }
 
-/*
- * IN_INT, IN_REAL, IN_VECTOR: low level input routines.
- */
 
-local void in_int(stream str, int *iptr)
-{
-#if !defined(BINARYIO)
-    if (fscanf(str, "%d", iptr) != 1)
-        error("in_int: input conversion error\n");
-#else
-    if (fread((void *) iptr, sizeof(int), 1, str) != 1)
-        error("in_int: fread failed\n");
-#endif
-}
-
-local void in_real(stream str, real *rptr)
-{
-    double tmp;
-
-#if !defined(BINARYIO)
-    if (fscanf(str, "%lf", &tmp) != 1)
-        error("in_real: input conversion error\n");
-    *rptr = tmp;
-#else
-    if (fread((void *) rptr, sizeof(real), 1, str) != 1)
-        error("in_real: fread failed\n");
-#endif
-}
-
-local void in_vector(stream str, vector vec)
-{
-    double tmpx, tmpy, tmpz;
-
-#if !defined(BINARYIO)
-    if (fscanf(str, "%lf%lf%lf", &tmpx, &tmpy, &tmpz) != 3)
-        error("in_vector: input conversion error\n");
-    vec[0] = tmpx;
-    vec[1] = tmpy;
-    vec[2] = tmpz;
-#else
-    if (fread((void *) vec, sizeof(real), NDIM, str) != NDIM)
-        error("in_vector: fread failed\n");
-#endif
-}
-
-/*
- * OUT_INT, OUT_REAL, OUT_VECTOR: low level output routines.
- */
-
-#define IFMT  " %d"                             /* output format for ints   */
-#define RFMT  " %14.7E"                         /* output format for reals  */
-
-local void out_int(stream str, int ival)
-{
-#if !defined(BINARYIO)
-    if (fprintf(str, IFMT "\n", ival) < 0)
-        error("out_int: fprintf failed\n");
-#else
-    if (fwrite((void *) &ival, sizeof(int), 1, str) != 1)
-        error("out_int: fwrite failed\n");
-#endif
-}
-
-local void out_real(stream str, real rval)
-{
-#if !defined(BINARYIO)
-    if (fprintf(str, RFMT "\n", rval) < 0)
-        error("out_real: fprintf failed\n");
-#else
-    if (fwrite((void *) &rval, sizeof(real), 1, str) != 1)
-        error("out_real: fwrite failed\n");
-#endif
-}
-
-local void out_vector(stream str, vector vec)
-{
-#if !defined(BINARYIO)
-    if (fprintf(str, RFMT RFMT RFMT "\n", vec[0], vec[1], vec[2]) < 0)
-        error("out_vector: fprintf failed\n");
-#else
-    if (fwrite((void *) vec, sizeof(real), NDIM, str) != NDIM)
-        error("out_vector: fwrite failed\n");
-#endif
-}
-
-/*
- * SAVESTATE: write current state to disk file.
- */
-
-#define safewrite(ptr,len,str)                  \
-    if (fwrite((void *) ptr, len, 1, str) != 1) \
-        error("savestate: fwrite failed\n")
-
-void savestate(string pattern)
-{
-    char namebuf[256];
-    stream str;
-    int nchars;
-
-    sprintf(namebuf, pattern, nstep & 1);       /* construct alternate name */
-    str = stropen(namebuf, "w!");
-    nchars = strlen(getargv0()) + 1;
-    safewrite(&nchars, sizeof(int), str);
-    safewrite(getargv0(), nchars * sizeof(char), str);
-    nchars = strlen(getversion()) + 1;
-    safewrite(&nchars, sizeof(int), str);
-    safewrite(getversion(), nchars * sizeof(char), str);
-#if defined(USEFREQ)
-    safewrite(&freq, sizeof(real), str);
-#else
-    safewrite(&dtime, sizeof(real), str);
-#endif
-#if !defined(QUICKSCAN)
-    safewrite(&theta, sizeof(real), str);
-#endif
-    safewrite(&usequad, sizeof(bool), str);
-    safewrite(&eps, sizeof(real), str);
-    nchars = strlen(options) + 1;
-    safewrite(&nchars, sizeof(int), str);
-    safewrite(options, nchars * sizeof(char), str);
-    safewrite(&tstop, sizeof(real), str);
-#if defined(USEFREQ)
-    safewrite(&freqout, sizeof(real), str);
-#else
-    safewrite(&dtout, sizeof(real), str);
-#endif
-    safewrite(&tnow, sizeof(real), str);
-    safewrite(&tout, sizeof(real), str);
-    safewrite(&nstep, sizeof(int), str);
-    safewrite(&rsize, sizeof(real), str);
-    safewrite(&nbody, sizeof(int), str);
-    safewrite(bodytab, nbody * sizeof(body), str);
-    fclose(str);
-}
-
-/*
- * RESTORESTATE: restore state from disk file.
- */
-
-#define saferead(ptr,len,str)                  \
-    if (fread((void *) ptr, len, 1, str) != 1) \
-        error("restorestate: fread failed\n")
-
-void restorestate(string file)
-{
-    stream str;
-    int nchars;
-    string program, version;
-
-    str = stropen(file, "r");
-    saferead(&nchars, sizeof(int), str);
-    program = (string) allocate(nchars * sizeof(char));
-    saferead(program, nchars * sizeof(char), str);
-    saferead(&nchars, sizeof(int), str);
-    version = (string) allocate(nchars * sizeof(char));
-    saferead(version, nchars * sizeof(char), str);
-    if (! streq(program, getargv0()) ||         /* check program, version   */
-          ! streq(version, getversion()))
-        printf("warning: state file may be outdated\n\n");
-#if defined(USEFREQ)
-    saferead(&freq, sizeof(real), str);
-#else
-    saferead(&dtime, sizeof(real), str);
-#endif
-#if !defined(QUICKSCAN)
-    saferead(&theta, sizeof(real), str);
-#endif
-    saferead(&usequad, sizeof(bool), str);
-    saferead(&eps, sizeof(real), str);
-    saferead(&nchars, sizeof(int), str);
-    options = (string) allocate(nchars * sizeof(char));
-    saferead(options, nchars * sizeof(char), str);
-    saferead(&tstop, sizeof(real), str);
-#if defined(USEFREQ)
-    saferead(&freqout, sizeof(real), str);
-#else
-    saferead(&dtout, sizeof(real), str);
-#endif
-    saferead(&tnow, sizeof(real), str);
-    saferead(&tout, sizeof(real), str);
-    saferead(&nstep, sizeof(int), str);
-    saferead(&rsize, sizeof(real), str);
-    saferead(&nbody, sizeof(int), str);
-    bodytab = (bodyptr) allocate(nbody * sizeof(body));
-    saferead(bodytab, nbody * sizeof(body), str);
-    fclose(str);
-}
 
 
 int save_values_bin(int file_number)

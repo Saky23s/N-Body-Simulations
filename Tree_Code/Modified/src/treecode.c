@@ -168,31 +168,6 @@ local void startrun(void)
         rsize = 1.0;                            /* start root w/ unit cube  */
         nstep = 0;                              /* begin counting steps     */
         tout = tnow;                            /* schedule first output    */
-    } else {                                    /* else restart old run     */
-        restorestate(getparam("restore"));      /* read in state file       */
-        if (getparamstat("eps") & ARGPARAM)     /* if given, set new params */
-            eps = getdparam("eps");
-#if !defined(QUICKSCAN)
-        if (getparamstat("theta") & ARGPARAM)
-            theta = getdparam("theta");
-#endif
-        if (getparamstat("usequad") & ARGPARAM)
-            usequad = getbparam("usequad");
-        if (getparamstat("options") & ARGPARAM)
-            options = getparam("options");
-        if (getparamstat("tstop") & ARGPARAM)
-            tstop = getdparam("tstop");
-#if defined(USEFREQ)
-        if (getparamstat("freqout") & ARGPARAM)
-            freqout = getdparam("freqout");
-        if (scanopt(options, "new-tout"))       /* if output time reset     */
-            tout = tnow + 1 / freqout;          /* then offset from now     */
-#else
-            dtout = (sscanf(getparam("dtout"), "%lf/%lf", &dt1, &dt2) == 2 ?
-                      dt1 / dt2 : getdparam("dtout"));
-        if (scanopt(options, "new-tout"))       /* if output time reset     */
-            tout = tnow + dtout;                /* then offset from now     */
-#endif
     }
 }
 
