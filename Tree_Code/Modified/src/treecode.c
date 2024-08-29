@@ -24,10 +24,6 @@ int main(int argc, string argv[])
 {   
     infile = argv[2];
     tstop = strtod(argv[1], NULL);
-
-    usequad = FALSE;
-
-    options = "";
         
     inputdata();                        /* then read inital data    */
     

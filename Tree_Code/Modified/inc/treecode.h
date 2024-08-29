@@ -14,19 +14,6 @@
 
 global string infile;                   /* file name for snapshot input     */
 
-global string outfile;                  /* file name for snapshot output    */
-
-global string savefile;                 /* file name for state output       */
-
-#if defined(USEFREQ)
-
-global real freq;                       /* basic integration frequency      */
-
-global real freqout;                    /* data output frequency            */
-
-
-#endif
-
 global real tstop;                      /* time to stop calculation         */
 
 global string headline;                 /* message describing calculation   */

@@ -20,9 +20,6 @@ local int subindex(bodyptr, cellptr);           /* compute subcell index    */
 local void hackcofm(cellptr, real, int);        /* find centers of mass     */
 local void setrcrit(cellptr, vector, real);     /* set cell's crit. radius  */
 local void threadtree(nodeptr, nodeptr);        /* set next and more links  */
-local void hackquad(cellptr);                   /* compute quad moments     */
-
-local bool bh86, sw94;                          /* use alternate criteria   */
 local nodeptr freecell = NULL;                  /* list of free cells       */
 
 #define MAXLEVEL  32                            /* max height of tree       */
@@ -47,17 +44,12 @@ void maketree(bodyptr btab, int nbody)
     expandbox(btab, nbody);                     /* and expand cell to fit   */
     for (p = btab; p < btab+nbody; p++)         /* loop over all bodies     */
         loadbody(p);                            /* insert each into tree    */
-    bh86 = FALSE;            /* set flags for alternate  */
-    sw94 = FALSE;            /* ...cell opening criteria */
-    if (bh86 && sw94)                           /* can't have both at once  */
-        error("maketree: incompatible options bh86 and sw94\n");
+
     tdepth = 0;                                 /* init count of levels     */
     for (i = 0; i < MAXLEVEL; i++)              /* and init tree histograms */
         cellhist[i] = subnhist[i] = 0;
     hackcofm(root, rsize, 0);                   /* find c-of-m coords, etc  */
     threadtree((nodeptr) root, NULL);           /* add next and more links  */
-    if (usequad)                                /* if including quad terms  */
-        hackquad(root);                         /* find quadrupole moments  */
     cputree = cputime() - cpustart;             /* store elapsed CPU time   */
 }
 
@@ -236,15 +228,6 @@ local void setrcrit(cellptr p, vector cmpos, real psize)
 
     if (theta == 0.0)                           /* if exact calculation     */
         Rcrit2(p) = rsqr(2 * rsize);            /* then always open cells   */
-    else if (sw94) {                            /* if using S&W's criterion */
-        bmax2 = 0.0;                            /* compute max distance^2   */
-        for (k = 0; k < NDIM; k++) {            /* loop over dimensions     */
-            d = cmpos[k] - Pos(p)[k] + psize/2; /* get dist from corner     */
-            bmax2 += rsqr(MAX(d, psize - d));   /* and sum max distance^2   */
-        }
-        Rcrit2(p) = bmax2 / rsqr(theta);        /* use max dist from cm     */
-    } else if (bh86)                            /* if using old criterion   */
-        Rcrit2(p) = rsqr(psize / theta);        /* then use size of cell    */
     else {                                      /* else use new criterion   */
         DISTV(d, cmpos, Pos(p));                /* find offset from center  */
         Rcrit2(p) = rsqr(psize / theta + d);    /* use size plus offset     */
@@ -276,39 +259,3 @@ local void threadtree(nodeptr p, nodeptr n)
     }
 }
 
-/*
- * HACKQUAD: descend tree, evaluating quadrupole moments.  Note that this
- * routine is coded so that the Subp() and Quad() components of a cell can
- * share the same memory locations.
- */
-
-local void hackquad(cellptr p)
-{
-    int ndesc, i;
-    nodeptr desc[NSUB], q;
-    vector dr;
-    real drsq;
-    matrix drdr, Idrsq, tmpm;
-
-    ndesc = 0;                                  /* count occupied subnodes  */
-    for (i = 0; i < NSUB; i++)                  /* loop over all subnodes   */
-        if (Subp(p)[i] != NULL)                 /* if this one's occupied   */
-            desc[ndesc++] = Subp(p)[i];         /* copy it to safety        */
-    CLRM(Quad(p));                              /* init quadrupole moment   */
-    for (i = 0; i < ndesc; i++) {               /* loop over real subnodes  */
-        q = desc[i];                            /* access ech one in turn   */
-        if (Type(q) == CELL)                    /* if it's also a cell      */
-            hackquad((cellptr) q);              /* then process it first    */
-        SUBV(dr, Pos(q), Pos(p));               /* find displacement vect.  */
-        OUTVP(drdr, dr, dr);                    /* form outer prod. of dr   */
-        DOTVP(drsq, dr, dr);                    /* and dot prod. dr * dr    */
-        SETMI(Idrsq);                           /* init unit matrix         */
-        MULMS(Idrsq, Idrsq, drsq);              /* and scale by dr * dr     */
-        MULMS(tmpm, drdr, 3.0);                 /* scale drdr by 3          */
-        SUBM(tmpm, tmpm, Idrsq);                /* now form quad. moment    */
-        MULMS(tmpm, tmpm, Mass(q));             /* from cm of subnode       */
-        if (Type(q) == CELL)                    /* if subnode is cell       */
-            ADDM(tmpm, tmpm, Quad(q));          /* then include its moment  */
-        ADDM(Quad(p), Quad(p), tmpm);           /* increment moment of cell */
-    }
-}

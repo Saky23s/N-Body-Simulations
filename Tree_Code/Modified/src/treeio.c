@@ -69,13 +69,8 @@ void startoutput(void)
 #if !defined(QUICKSCAN)
     printf("%10.2f", theta);
 #endif
-#if defined(USEFREQ)
-    printf("%10s%10.2f%10.4f\n", usequad ? "true" : "false", freqout, tstop);
-#else
-    printf("%10s%10.5f%10.4f\n", usequad ? "true" : "false", speed, tstop);
-#endif
-    if (! strnull(options))                     /* print options, if any    */
-        printf("\n\toptions: %s\n", options);
+
+    printf("%10.5f%10.4f\n", speed, tstop);
 }
 
 /*

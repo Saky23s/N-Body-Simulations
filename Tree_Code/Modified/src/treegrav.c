@@ -197,11 +197,8 @@ local void gravsum(bodyptr p0, cellptr cptr, cellptr bptr)
     SETV(pos0, Pos(p0));                        /* copy position of body    */
     phi0 = 0.0;                                 /* init total potential     */
     CLRV(acc0);                                 /* and total acceleration   */
-    if (usequad)                                /* if using quad moments    */
-        sumcell(interact, cptr, pos0, &phi0, acc0);
-                                                /* sum cell forces w quads  */
-    else                                        /* not using quad moments   */
-        sumnode(interact, cptr, pos0, &phi0, acc0);
+
+    sumnode(interact, cptr, pos0, &phi0, acc0);
                                                 /* sum cell forces wo quads */
     sumnode(bptr, interact + actlen, pos0, &phi0, acc0);
                                                 /* sum forces from bodies   */
