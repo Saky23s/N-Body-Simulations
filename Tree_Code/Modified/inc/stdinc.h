@@ -73,34 +73,11 @@ typedef FILE *stream;                   /* note: stdio.h is included above  */
  * instead of SINGLEPREC.
  */
 
-/*
- * Default precision: use SINGLEPREC on SGI and MIXEDPREC on IBM.
- */
 
-#if !defined(MIXEDPREC) && !defined(SINGLEPREC) && !defined(DOUBLEPREC)
-#define SINGLEPREC
-#endif
 
-#if defined(DOUBLEPREC)
-#undef SINGLEPREC
-#undef MIXEDPREC
+
 typedef double real, *realptr;
 #define Precision "DOUBLEPREC"
-#endif
-
-#if defined(MIXEDPREC)
-#undef DOUBLEPREC
-#undef SINGLEPREC
-typedef float *realptr, real;
-#define Precision "MIXEDPREC"
-#endif
-
-#if defined(SINGLEPREC)
-#undef DOUBLEPREC
-#undef MIXEDPREC
-typedef float real, *realptr;
-#define Precision "SINGLEPREC"
-#endif
 
 /*
  * PI, etc.  --  mathematical constants.
