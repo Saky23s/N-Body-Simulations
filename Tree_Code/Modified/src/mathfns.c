@@ -8,11 +8,12 @@
 #include "../inc/stdinc.h"
 #include "../inc/mathfns.h"
 
-/*
- * RSQR, RQBE: compute x*x and x*x*x.
- */
-
 real rsqr(real x)
+/**
+ * Computes the square operation of a number as x*x
+ * @param x (real): number to be squared
+ * @return x*x (real): the number squared
+ */
 {
     return (x * x);
 }
