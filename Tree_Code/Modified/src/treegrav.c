@@ -1,234 +1,379 @@
-/****************************************************************************/
-/* TREEGRAV.C: routines to compute gravity. Public routines: gravcalc().    */
-/* Copyright (c) 2001 by Joshua E. Barnes, Honolulu, Hawai`i.               */
-/****************************************************************************/
+/** 
+ * @file treegrav.c
+ * @copyright (c) 2001 by Joshua E. Barnes, Honolulu, Hawai`i. 
+ * 
+ * Routines to compute gravity.
+ * 
+ * Modifies the original work of Joshua E. Barnes to remove features
+ * that are not required for this investigation 
+ * 
+ * @author (modifications) Santiago Salas santiago.salas@estudiante.uam.es             
+ **/
 
 #include "../inc/stdinc.h"
 #include "../inc/mathfns.h"
 #include "../inc/vectmath.h"
 #include "../inc/treedefs.h"
 
-/* Local routines to perform force calculations. */
-
-local void walktree(nodeptr *, nodeptr *, cellptr, cellptr,
+//Internal helpes
+local int walktree(nodeptr *, nodeptr *, cellptr, cellptr,
                     nodeptr, real, vector);
 local bool accept(nodeptr, real, vector);
-local void walksub(nodeptr *, nodeptr *, cellptr, cellptr,
+local int walksub(nodeptr *, nodeptr *, cellptr, cellptr,
                    nodeptr, real, vector);
-local void gravsum(bodyptr, cellptr, cellptr);
-local void sumnode(cellptr, cellptr, vector, real *, vector);
-local void sumcell(cellptr, cellptr, vector, real *, vector);
+local int gravsum(bodyptr, cellptr, cellptr);
+local int sumnode(cellptr, cellptr, vector, real *, vector);
 
-/* Lists of active nodes and interactions. */
-
+//Lists of active nodes and interactions.
+//Active list fudge factor
 #if !defined(FACTIVE)
-#  define FACTIVE  0.75                         /* active list fudge factor */
+#  define FACTIVE  0.75 
 #endif
 
-local int actlen;                               /* length as allocated      */
+//Length as allocated 
+local int actlen;
 
-local nodeptr *active;                          /* list of nodes tested     */
+//Active pointer addresses an array of node pointers which will be examined when constructing interaction lists.
+local nodeptr *active;
 
-local cellptr interact;                         /* list of interactions     */
+//Interact pointer addresses a linear array of cells which list all the interactions acting on a body
+local cellptr interact;
 
-/*
- * GRAVCALC: perform force calculation on all particles.
+
+int gravcalc(void)
+/**
+ * This funtion calculates the forces of all particles with a single recursive scan of the tree
+ * 
+ * The tree structure to be used by gravcalc is addressed by the global root pointer; also referenced are the tree depth tdepth and root cell size rsize.
+ * 
+ * @return status (int): STATUS_ERROR (0) in case of error STATUS_OK(1) in case everything when ok
  */
-
-void gravcalc(void)
 {
     double cpustart;
     vector rmid;
 
-    actlen = FACTIVE * 216 * tdepth;            /* estimate list length     */
+    //Estimate list length
+    actlen = FACTIVE * 216 * tdepth;
+    //Allow for opening angle
+    actlen = actlen * rpow(theta, -2.5); 
 
-    actlen = actlen * rpow(theta, -2.5);        /* allow for opening angle  */
+    //Allocate temporal storage 
+    active = (nodeptr *) calloc(actlen * sizeof(nodeptr), 1);
+    interact = (cellptr) calloc(actlen * sizeof(cell), 1);
+    if(active == NULL || interact == NULL)
+        return STATUS_ERROR;
+    
+    //Record time, less alloc
+    cpustart = cputime(); 
+    
+    //Zero cumulative counters
+    actmax = nbbcalc = nbccalc = 0;
 
-    active = (nodeptr *) allocate(actlen * sizeof(nodeptr));
-    interact = (cellptr) allocate(actlen * sizeof(cell));
-    cpustart = cputime();                       /* record time, less alloc  */
-    actmax = nbbcalc = nbccalc = 0;             /* zero cumulative counters */
-    active[0] = (nodeptr) root;                 /* initialize active list   */
-    CLRV(rmid);                                 /* set center of root cell  */
-    walktree(active, active + 1, interact, interact + actlen,
-             (nodeptr) root, rsize, rmid);      /* scan tree, update forces */
-    cpuforce = cputime() - cpustart;            /* store CPU time w/o alloc */
+    //Init active list
+    active[0] = (nodeptr) root;
+
+    //Set center of root cell
+    CLRV(rmid);
+
+    //Scan tree and update forces
+    if(walktree(active, active + 1, interact, interact + actlen, (nodeptr) root, rsize, rmid) == STATUS_ERROR)
+    {
+        free(active);
+        free(interact);
+        return STATUS_ERROR;
+    }
+    
+    //Store CPU time w/o alloc 
+    cpuforce = cputime() - cpustart;
+
+    //Free temporal storage
     free(active);
     free(interact);
+
+    return STATUS_OK;
 }
 
-/*
- * WALKTREE: do a complete walk of the tree, building the interaction
- * list level-by-level and computing the resulting force on each body.
+local int walktree(nodeptr *aptr, nodeptr *nptr, cellptr cptr, cellptr bptr, nodeptr p, real psize, vector pmid)
+/**
+ * This funtion computes gravity on bodies within node p. This is accomplished via a recursive scan of p and its descendents. 
+ * At each point in the scan, information from levels between the root and p is contained in a set of nodes which will appear on the final interaction lists of all bodies within p
+ *
+ * @param aptr (nodeptr*): List of active node start 
+ * @param nptr (nodeptr*): List of active node end
+ * @param cptr (cellptr): Cell array pointer
+ * @param bptr (cellptr): Body array pointer
+ * @param p (nodeptr): Node which force we are calculating
+ * @param psize (real): linear size of p
+ * @param pmid (vector) geometic midpoint of p
+ * 
+ * @return status (int): STATUS_ERROR (0) in case of error STATUS_OK(1) in case everything when ok
  */
-
-local void walktree(nodeptr *aptr, nodeptr *nptr, cellptr cptr, cellptr bptr,
-                    nodeptr p, real psize, vector pmid)
 {
     nodeptr *np, *ap, q;
     int actsafe;
 
-    if (Update(p)) {                            /* are new forces needed?   */
-        np = nptr;                              /* start new active list    */
-        actsafe = actlen - NSUB;                /* leave room for NSUB more */
-        for (ap = aptr; ap < nptr; ap++)        /* loop over active nodes   */
-            if (Type(*ap) == CELL) {            /* is this node a cell?     */
-                if (accept(*ap, psize, pmid)) { /* does it pass the test?   */
-                    Mass(cptr) = Mass(*ap);     /* copy to interaction list */
+    //Are new forces needed?
+    if (Update(p)) 
+    {   
+        //Start a new active list
+        np = nptr;
+        //Leave room for NSUB more
+        actsafe = actlen - NSUB; 
+
+        //Loop over active nodes
+        for (ap = aptr; ap < nptr; ap++)
+        {   
+            //If node is a cell
+            if (Type(*ap) == CELL) 
+            {   
+                //If it passes the test copy interaction list and bump cell array ptr
+                if (accept(*ap, psize, pmid)) 
+                {
+                    Mass(cptr) = Mass(*ap);
                     SETV(Pos(cptr), Pos(*ap));
                     SETM(Quad(cptr), Quad(*ap));
-                    cptr++;                     /* and bump cell array ptr  */
-                } else {                        /* else it fails the test   */
-                    if (np - active >= actsafe) /* check list has room      */
+                    cptr++;
+                } 
+                //If it does not passes the test
+                else 
+                {   
+                    //Check if list has room
+                    if (np - active >= actsafe) 
+                    {
                         error("walktree: active list overflow\n");
+                        return STATUS_ERROR;
+                    }
+                    ///Loop over all subcells and put them on new active list
                     for (q = More(*ap); q != Next(*ap); q = Next(q))
-                                                /* loop over all subcells   */
-                        *np++= q;               /* put on new active list   */
+                    {
+                        *np++= q;
+                    }
                 }
-            } else                              /* else this node is a body */
-                if (*ap != p) {                 /* if not self-interaction  */
-                    --bptr;                     /* bump body array ptr      */
-                    Mass(bptr) = Mass(*ap);     /* and copy data to array   */
+            } 
+            //Node is a body
+            else 
+            {   
+                //if not self-interaction
+                if (*ap != p) 
+                {   
+                    //Bump body array ptr
+                    --bptr;
+                    //Copy data to array
+                    Mass(bptr) = Mass(*ap);
                     SETV(Pos(bptr), Pos(*ap));
                 }
-        actmax = MAX(actmax, np - active);      /* keep track of max active */
-        if (np != nptr)                         /* if new actives listed    */
-            walksub(nptr, np, cptr, bptr, p, psize, pmid);
-                                                /* then visit next level    */
-        else {                                  /* else no actives left, so */
-            if (Type(p) != BODY)                /* must have found a body   */
+            }
+        }
+        //If new actives listed then visit next level
+        actmax = MAX(actmax, np - active);
+        if (np != nptr)  
+        {
+            if(walksub(nptr, np, cptr, bptr, p, psize, pmid) == STATUS_ERROR)
+                return STATUS_ERROR;
+        }
+        //If no actives left means we must have found a body
+        else 
+        {
+            if (Type(p) != BODY)
+            {
                 error("walktree: recursion terminated with cell\n");
-            gravsum((bodyptr) p, cptr, bptr);   /* sum force on the body    */
+                return STATUS_ERROR;
+            } 
+            if(gravsum((bodyptr) p, cptr, bptr) == STATUS_ERROR)
+                return STATUS_ERROR; 
         }
     }
+    return STATUS_OK;
 }
 
 
-/*
- * ACCEPT: standard criterion accepts cell if its critical radius
- * does not intersect cell p, and also imposes above condition.
- */
-
 local bool accept(nodeptr c, real psize, vector pmid)
+/**
+ * This funtion checks if a cell critical radius does not intersect cell p 
+ * 
+ * @param c (nodeptr): Cell we are checking
+ * @param psize (real): linear size of p
+ * @param pmid (vector) geometic midpoint of p
+ * 
+ * @return bool, TRUE(1) if cell is accepted meaning that it does not intersect or FALSE(0) otherwise
+ */
 {
     real dmax, dsq, dk;
     int k;
 
-    dmax = psize;                               /* init maximum distance    */
-    dsq = 0.0;                                  /* and squared min distance */
-    for (k = 0; k < NDIM; k++) {                /* loop over space dims     */
-        dk = Pos(c)[k] - pmid[k];               /* form distance to midpnt  */
-        if (dk < 0)                             /* and get absolute value   */
+    //Maximum distance
+    dmax = psize;
+    //Min distance
+    dsq = 0.0; 
+
+    //Loop over the 3 dimensions
+    for (k = 0; k < NDIM; k++) 
+    {   
+        //Absolute value of distance to midpoint 
+        dk = Pos(c)[k] - pmid[k]; 
+        if (dk < 0)
             dk = - dk;
-        if (dk > dmax)                          /* keep track of max value  */
+
+        //Keep track of max value
+        if (dk > dmax)
             dmax = dk;
-        dk -= ((real) 0.5) * psize;             /* allow for size of cell   */
+
+        //Allow for size of cell 
+        dk -= ((real) 0.5) * psize; 
+
+        //Sum min dist to cell ^2
         if (dk > 0)
-            dsq += dk * dk;                     /* sum min dist to cell ^2  */
+            dsq += dk * dk; 
     }
-    return (dsq > Rcrit2(c) &&                  /* test angular criterion   */
-              dmax > ((real) 1.5) * psize);     /* and adjacency criterion  */
+
+    //Test angular criterion and adjancency criterion
+    return (dsq > Rcrit2(c) &&  dmax > ((real) 1.5) * psize);     
 }
 
-/*
- * WALKSUB: test next level's active list against subnodes of p.
- */
 
-local void walksub(nodeptr *nptr, nodeptr *np, cellptr cptr, cellptr bptr,
-                   nodeptr p, real psize, vector pmid)
+local int walksub(nodeptr *nptr, nodeptr *np, cellptr cptr, cellptr bptr, nodeptr p, real psize, vector pmid)
+/**
+ * Test next level's active list against subnodes of p.
+ * 
+ * All parameters have the same value as walktree
+ * @param aptr (nodeptr*): List of active node start 
+ * @param nptr (nodeptr*): List of active node end
+ * @param cptr (cellptr): Cell array pointer
+ * @param bptr (cellptr): Body array pointer
+ * @param p (nodeptr): Node which force we are calculating
+ * @param psize (real): linear size of p
+ * @param pmid (vector) geometic midpoint of p
+ * 
+ * @return status (int): STATUS_ERROR (0) in case of error STATUS_OK(1) in case everything when ok
+ */
 {
     real poff;
     nodeptr q;
     int k;
     vector nmid;
 
-    poff = psize / 4;                           /* precompute mid. offset   */
-    if (Type(p) == CELL) {                      /* fanout over descendents  */
-        for (q = More(p); q != Next(p); q = Next(q)) {
-                                                /* loop over all subcells   */
-            for (k = 0; k < NDIM; k++)          /* locate each's midpoint   */
+    //Mid ofsset
+    poff = psize / 4;
+    
+    //If the node is a cell, fanout over descendents
+    if (Type(p) == CELL) 
+    {   
+        //Loop over all descendents
+        for (q = More(p); q != Next(p); q = Next(q)) 
+        {   
+            //Locate each's midpoint
+            for (k = 0; k < NDIM; k++)
+            {
                 nmid[k] = pmid[k] + (Pos(q)[k] < pmid[k] ? - poff : poff);
-            walktree(nptr, np, cptr, bptr, q, psize / 2, nmid);
-                                                /* recurse on subcell       */
+            }
+
+            //Invoke walktree for each descendent, with the appropriately shifted cell center.
+            if(walktree(nptr, np, cptr, bptr, q, psize / 2, nmid) == STATUS_ERROR)
+                return STATUS_ERROR;
         }
-    } else {                                    /* extend virtual tree      */
-        for (k = 0; k < NDIM; k++)              /* locate next midpoint     */
+    } 
+    else 
+    {   
+        //locate next midpoint
+        for (k = 0; k < NDIM; k++)
+        {
             nmid[k] = pmid[k] + (Pos(p)[k] < pmid[k] ? - poff : poff);
-        walktree(nptr, np, cptr, bptr, p, psize / 2, nmid);
-                                                /* and search next level    */
+        }
+        //Continuing the search to the next level by `virtually' extending the tree.
+        if(walktree(nptr, np, cptr, bptr, p, psize / 2, nmid) == STATUS_ERROR)
+            return STATUS_ERROR;
     }
+
+    return STATUS_OK;
 }
 
-/*
- * GRAVSUM: compute gravitational field at body p0.
+local int gravsum(bodyptr p0, cellptr cptr, cellptr bptr)
+/**
+ * This funtion computes gravitational field at body p0
+ * 
+ * @param p0 (bodyptr): The body requiring updated forces 
+ * @param cptr (cellptr): pointer to cell interaction list
+ * @param bptr (cellptr): pointer to body interaction list
+ * 
+ * @return status (int): STATUS_ERROR (0) in case of error STATUS_OK(1) in case everything when ok
  */
-
-local void gravsum(bodyptr p0, cellptr cptr, cellptr bptr)
 {
     vector pos0, acc0;
     real phi0;
 
-    SETV(pos0, Pos(p0));                        /* copy position of body    */
-    phi0 = 0.0;                                 /* init total potential     */
-    CLRV(acc0);                                 /* and total acceleration   */
+    //Copy position of body
+    SETV(pos0, Pos(p0)); 
 
-    sumnode(interact, cptr, pos0, &phi0, acc0);
-                                                /* sum cell forces wo quads */
-    sumnode(bptr, interact + actlen, pos0, &phi0, acc0);
-                                                /* sum forces from bodies   */
-    Phi(p0) = phi0;                             /* store total potential    */
-    SETV(Acc(p0), acc0);                        /* and total acceleration   */
-    nbbcalc += interact + actlen - bptr;        /* count body-body forces   */
-    nbccalc += cptr - interact;                 /* count body-cell forces   */
+    //Init total potential and total acceleration
+    phi0 = 0.0;
+    CLRV(acc0);
+
+    //Sum cell not using quad moments
+    if(sumnode(interact, cptr, pos0, &phi0, acc0) == STATUS_ERROR)
+        return STATUS_ERROR;
+
+    //Sum cell forces wo quads
+    if(sumnode(bptr, interact + actlen, pos0, &phi0, acc0) == STATUS_ERROR)
+        return STATUS_ERROR;
+
+    //Store total potential and acceleration                                      
+    Phi(p0) = phi0;
+    SETV(Acc(p0), acc0);
+
+    //Count body-body forces
+    nbbcalc += interact + actlen - bptr;
+
+    //Count body-cell forces
+    nbccalc += cptr - interact;
+
+    return STATUS_OK; 
 }
 
-/*
- * SUMNODE: add up body-node interactions.
+local int sumnode(cellptr start, cellptr finish, vector pos0, real *phi0, vector acc0)
+/**
+ * This funtion sums up interactions without quadrupole corrections.
+ * 
+ * @param start (cellptr): Front of the interaction list
+ * @param finish (cellptr): Back of the interaction list
+ * @param pos0 (vector): Place where the force is being evaluated
+ * @param phi0 (real*): Resulting potential
+ * @param acc0 (vector): Resulting acceleration
+ * 
+ * @return status (int): STATUS_ERROR (0) in case of error STATUS_OK(1) in case everything when ok
  */
-
-local void sumnode(cellptr start, cellptr finish,
-                   vector pos0, real *phi0, vector acc0)
 {
     cellptr p;
     real eps2, dr2, drab, phi_p, mr3i;
     vector dr;
 
-    eps2 = eps * eps;                           /* avoid extra multiplys    */
-    for (p = start; p < finish; p++) {          /* loop over node list      */
-        DOTPSUBV(dr2, dr, Pos(p), pos0);        /* compute separation       */
-                                                /* and distance squared     */
-        dr2 += eps2;                            /* add standard softening   */
-        drab = rsqrt(dr2);                      /* form scalar "distance"   */
-        phi_p = Mass(p) / drab;                 /* get partial potential    */
-        *phi0 -= phi_p;                         /* decrement tot potential  */
-        mr3i = phi_p / dr2;                     /* form scale factor for dr */
-        ADDMULVS(acc0, dr, mr3i);               /* sum partial acceleration */
-    }
-}
-
-/*
- * SUMCELL: add up body-cell interactions.
- */
-
-local void sumcell(cellptr start, cellptr finish,
-                   vector pos0, real *phi0, vector acc0)
-{
-    cellptr p;
-    real eps2, dr2, drab, phi_p, mr3i, drqdr, dr5i, phi_q;
-    vector dr, qdr;
-
+    //Avoid extra multiplys
     eps2 = eps * eps;
-    for (p = start; p < finish; p++) {          /* loop over node list      */
-        DOTPSUBV(dr2, dr, Pos(p), pos0);        /* do mono part of force    */
+
+    for (p = start; p < finish; p++) 
+    {   
+        //Compute separation and distance squared
+        DOTPSUBV(dr2, dr, Pos(p), pos0);
+
+        //Add softening
         dr2 += eps2;
+
+        //Form scalar distance
         drab = rsqrt(dr2);
+
+        //Get partial potential
         phi_p = Mass(p) / drab;
+
+        //Decrement total potential
+        *phi0 -= phi_p; 
+
+        //Form scale factor for dr
         mr3i = phi_p / dr2;
-        DOTPMULMV(drqdr, qdr, Quad(p), dr);     /* do quad part of force    */
-        dr5i = ((real) 1.0) / (dr2 * dr2 * drab);
-        phi_q = ((real) 0.5) * dr5i * drqdr;
-        *phi0 -= phi_p + phi_q;                 /* add mono and quad pot    */
-        mr3i += ((real) 5.0) * phi_q / dr2;
-        ADDMULVS2(acc0, dr, mr3i, qdr, -dr5i);  /* add mono and quad acc    */
+
+        //Sum partial acceleration
+        ADDMULVS(acc0, dr, mr3i);
     }
+
+    return STATUS_OK;
 }
+
+
