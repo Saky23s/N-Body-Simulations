@@ -126,7 +126,8 @@ local int treeforce(void)
     }
     
     //Construct tree structure
-    maketree(bodytab, nbody);
+    if(maketree(bodytab, nbody) == STATUS_ERROR)
+        return STATUS_ERROR;
 
     //Compute initial forces
     gravcalc();
