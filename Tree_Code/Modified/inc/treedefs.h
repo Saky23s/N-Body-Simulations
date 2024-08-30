@@ -123,7 +123,7 @@ int maketree(bodyptr, int);
 //Funtion to free tree memory
 void freetree(bodyptr btab);
 //Funtion to update forces on bodies
-void gravcalc(void); 
+int gravcalc(void); 
 
 /***************************************/
 //Global variables

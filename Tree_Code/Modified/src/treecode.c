@@ -130,7 +130,8 @@ local int treeforce(void)
         return STATUS_ERROR;
 
     //Compute initial forces
-    gravcalc();
+    if(gravcalc() == STATUS_ERROR)
+        return STATUS_ERROR;
 
     //If diagnostics are required print the force stadistics
     #ifdef DIAGNOSTICS
