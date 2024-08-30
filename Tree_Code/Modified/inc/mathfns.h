@@ -1,22 +1,30 @@
-/****************************************************************************/
-/* MATHFNS.H: header file for system and zeno math functions; assumes role  */
-/* of math.h.  Defines real-valued synonyms for system functions (eg, rsqrt */
-/* for square root) and zeno functions (eg, seval), depending on precision  */
-/* switch (MIXEDPREC, SINGLEPREC, or DOUBLEPREC).                           */
-/* Copyright (c) 2001 by Joshua E. Barnes, Honolulu, Hawai`i.               */
-/****************************************************************************/
+/** 
+ * @file mathfns.h
+ * @copyright (c) 2001 by Joshua E. Barnes, Honolulu, Hawai`i. 
+ * 
+ * header file for system and zeno math functions; assumes role
+ * of math.h.
+
+ * The original worked with real values, meaning that they can handle
+ * either floats or doubles, depending on compiler switches.
+ * 
+ * This was reduced to keep only the necessary for this investigation,
+ * this is only working with double and only the funtions that 
+ * are used in the code 
+ * 
+ * At the end only rsqr was left
+ *  
+ * @author (modifications) Santiago Salas santiago.salas@estudiante.uam.es             
+ **/
 
 #ifndef _mathfns_h
 #define _mathfns_h
 
 #include <math.h>
 
-/*
- * System math functions.  Use double-precision versions in mixed or
- * double precision, and single-precisions versions otherwise.
+/**
+ * System math functions.  Use double-precision versions
  */
-
-
 #define rsqrt    sqrt
 #define rcbrt    cbrt
 #define rsin     sin
@@ -36,21 +44,8 @@
 #define rabs     fabs
 #define rfloor   floor
 
-
-
-
-/*
- * Functions in mathfns.c; invoked just like those above.
- */
-
-
+//Funtion defined in mathfns. Only rsqr needed
 #define rsqr     sqr
-
-
 real rsqr(real);
-
-
-
-
 
 #endif  /* ! _mathfns_h */
