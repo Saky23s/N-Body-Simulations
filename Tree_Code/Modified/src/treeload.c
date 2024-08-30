@@ -258,3 +258,42 @@ local void threadtree(nodeptr p, nodeptr n)
     }
 }
 
+void freetree(bodyptr btab)
+/**
+ * Funtion to free allocated memory
+ * @param btab (bodyptr): Pointer to array of bodies
+ */
+{
+    nodeptr p;
+    nodeptr q;
+
+    //Starting with the root
+    p = (nodeptr) root; 
+    //Scan tree
+    while (p != NULL) 
+    {
+        //If we found a cell                     
+        if (Type(p) == CELL) 
+        {    
+            //Save existing list and add it to the front   
+            Next(p) = freecell;
+            freecell = p;
+            p = More(p);
+
+        }
+        //If we found a free it and skip it
+        else
+        {
+            p = Next(p);
+        }
+    }
+
+    
+    while((p = (nodeptr) freecell) != NULL)
+    {
+        freecell = Next(p);
+        free((cellptr) p);
+    }
+
+    free(btab);
+}

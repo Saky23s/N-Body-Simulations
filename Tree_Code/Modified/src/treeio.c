@@ -1,5 +1,5 @@
 /** 
- * @file treecode.c
+ * @file treeio.c
  * @copyright (c) 2001 by Joshua E. Barnes, Honolulu, Hawai`i. 
  * 
  * I/O routines for hierarchical N-body code.

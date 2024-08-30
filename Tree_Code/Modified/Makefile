@@ -22,9 +22,9 @@ OPTFLAG = -O3
 ########################################################################
 # Vanila treecode:
 
-treecode: treecode.o treeio.o treeload.o treegrav.o libZeno.a
+treecode: src/main.c treecode.o treeio.o treeload.o treegrav.o libZeno.a
 	$(CC) $(LDFLAGS) -o treecode \
-	  treecode.o treeio.o treeload.o treegrav.o libZeno.a -lm
+	  src/main.c treecode.o treeio.o treeload.o treegrav.o libZeno.a -lm
 
 treecode.o: src/treecode.c inc/treecode.h inc/treedefs.h
 	$(CC) $(CCFLAGS) $(DIAGNOSTICS) -c src/treecode.c

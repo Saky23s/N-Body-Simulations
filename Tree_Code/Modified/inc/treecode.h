@@ -28,6 +28,10 @@ global int nbody;                       /* number of bodies in system       */
 
 global bodyptr bodytab;                 /* points to array of bodies        */
 
+
+// Convert 'struct timeval' into seconds in double prec. floating point
+#define WALLTIME(t) ((double)(t).tv_sec + 1e-6 * (double)(t).tv_usec)
+
 /*
  * Prototypes for I/O routines.
  */
