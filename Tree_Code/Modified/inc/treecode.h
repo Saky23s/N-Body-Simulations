@@ -1,46 +1,55 @@
-/****************************************************************************/
-/* TREECODE.H: define various things for treecode.c and treeio.c.           */
-/* Copyright (c) 2001 by Joshua E. Barnes, Honolulu, Hawai`i.               */
-/****************************************************************************/
+/** 
+ * @file treecode.h
+ * @copyright (c) 2001 by Joshua E. Barnes, Honolulu, Hawai`i. 
+ * 
+ * This document defines various things for treecode.c and treeio.c.
+ * 
+ * This document has been modified lightly to remove funtions not needed in this investigations
+ * and to adapt it to work with our existing framework
+ * 
+ * @author (modifications) Santiago Salas santiago.salas@estudiante.uam.es             
+ **/
 
 #ifndef _treecode_h
 #define _treecode_h
-
 #include "treedefs.h"
 
-/*
- * Parameters, state variables, and diagnostics for N-body integration.
- */
+/***************************************/
+//parametes, state variables and diagnostics for N-body integration.
+//Time to stop calculation
+global real tstop;
 
-global string infile;                   /* file name for snapshot input     */
+//Current value of time
+global real tnow;
 
-global real tstop;                      /* time to stop calculation         */
+//Time of next output
+global real tout;
 
-global string headline;                 /* message describing calculation   */
+//Number of time steps done 
+global int nstep;
 
-global real tnow;                       /* current value of time            */
+//Number of bodies in the system
+global int nbody;
 
-global real tout;                       /* time of next output              */
+//Pointer to array of bodies
+global bodyptr bodytab;
 
-global int nstep;                       /* number of time-steps             */
-
-global int nbody;                       /* number of bodies in system       */
-
-global bodyptr bodytab;                 /* points to array of bodies        */
-
-
+/***************************************/
 // Convert 'struct timeval' into seconds in double prec. floating point
 #define WALLTIME(t) ((double)(t).tv_sec + 1e-6 * (double)(t).tv_usec)
 
-/*
- * Prototypes for I/O routines.
- */
+/***************************************/
+//Prototypes for I/O routines.
 
-int load_bodies(char* filename);               /* read initial data file           */
-int output(void);                      /* perform output operation         */
+//Read initial data file
+int load_bodies(char* filename);
+
+//Perform output operation
+int output(void);
 
 #ifdef DIAGNOSTICS
-void forcereport(void);                 /* report on force calculation      */
+//Report on force calculation
+void forcereport(void);
 #endif
 
 #endif /* ! _treecode_h */
