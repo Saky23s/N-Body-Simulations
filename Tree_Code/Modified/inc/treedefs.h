@@ -115,14 +115,16 @@ typedef struct
 #define speed 0.1
 //Density smoothing length
 #define eps 0.025
+
 /***************************************/
 //Global funtions
 //Funtion to construct tree
-void maketree(bodyptr, int);
+int maketree(bodyptr, int);
 //Funtion to free tree memory
 void freetree(bodyptr btab);
 //Funtion to update forces on bodies
 void gravcalc(void); 
+
 /***************************************/
 //Global variables
 global cellptr root;                    /* pointer to root cell             */
@@ -130,7 +132,6 @@ global real rsize;                      /* side-length of root cell         */
 global int ncell;                       /* count of cells in tree           */
 global int tdepth;                      /* count of levels in tree          */
 global real cputree;                    /* CPU time to build tree           */
-
 
 global int actmax;                      /* maximum length of active list    */
 global int nbbcalc;                     /* total body-body interactions     */
