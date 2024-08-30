@@ -19,12 +19,17 @@ OPTFLAG = -O3
 # Uncomment the next line to see diagnostics instead of progress:
 #DIAGNOSTICS = -DDIAGNOSTICS
 
+all: treecode time_treecode_secuencial
 ########################################################################
 # Vanila treecode:
 
 treecode: src/main.c treecode.o treeio.o treeload.o treegrav.o libZeno.a
 	$(CC) $(LDFLAGS) -o treecode \
 	  src/main.c treecode.o treeio.o treeload.o treegrav.o libZeno.a -lm
+	
+time_treecode_secuencial: src/time.c treecode.o treeio.o treeload.o treegrav.o libZeno.a
+	$(CC) $(LDFLAGS) -o time_treecode_secuencial \
+	  src/time.c treecode.o treeio.o treeload.o treegrav.o libZeno.a -lm
 
 treecode.o: src/treecode.c inc/treecode.h inc/treedefs.h
 	$(CC) $(CCFLAGS) $(DIAGNOSTICS) -c src/treecode.c
@@ -42,7 +47,7 @@ treegrav.o: src/treegrav.c inc/treedefs.h
 # Zeno library:
 
 libZeno.a: clib.o mathfns.o
-	ar ruv libZeno.a clib.o mathfns.o
+	ar rv libZeno.a clib.o mathfns.o
 
 clib.o: src/clib.c inc/stdinc.h
 	$(CC) $(CCFLAGS) -c src/clib.c
@@ -55,4 +60,5 @@ clean:
 	rm *.o 
 	rm *.a 
 	rm treecode
+	rm time_treecode_secuencial
 
