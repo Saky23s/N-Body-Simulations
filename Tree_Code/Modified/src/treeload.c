@@ -158,7 +158,7 @@ local cellptr makecell(void)
     //If there is no free cells left allocate a new one
     if (freecell == NULL)  
     {
-        c = (cellptr) allocate(sizeof(cell)); 
+        c = (cellptr) calloc(sizeof(cell), 1); 
         if(c == NULL)
             return NULL;
     }
