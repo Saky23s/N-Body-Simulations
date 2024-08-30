@@ -16,6 +16,9 @@ CCFLAGS = -DLINUX
 LDFLAGS =
 OPTFLAG = -O3
 
+# Uncomment the next line to see diagnostics instead of progress:
+#DIAGNOSTICS = -DDIAGNOSTICS
+
 ########################################################################
 # Vanila treecode:
 
@@ -24,16 +27,16 @@ treecode: treecode.o treeio.o treeload.o treegrav.o libZeno.a
 	  treecode.o treeio.o treeload.o treegrav.o libZeno.a -lm
 
 treecode.o: src/treecode.c inc/treecode.h inc/treedefs.h
-	$(CC) $(CCFLAGS) -c src/treecode.c
+	$(CC) $(CCFLAGS) $(DIAGNOSTICS) -c src/treecode.c
 
 treeio.o: src/treeio.c inc/treecode.h inc/treedefs.h
-	$(CC) $(CCFLAGS) -c src/treeio.c
+	$(CC) $(CCFLAGS) $(DIAGNOSTICS) -c src/treeio.c
 
 treeload.o: src/treeload.c inc/treedefs.h
-	$(CC) $(CCFLAGS) -c src/treeload.c
+	$(CC) $(CCFLAGS) $(DIAGNOSTICS) -c src/treeload.c
 
 treegrav.o: src/treegrav.c inc/treedefs.h
-	$(CC) $(CCFLAGS) $(OPTFLAG) -c src/treegrav.c
+	$(CC) $(CCFLAGS) $(OPTFLAG) $(DIAGNOSTICS) -c src/treegrav.c
 
 ########################################################################
 # Zeno library:

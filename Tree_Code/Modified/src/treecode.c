@@ -22,21 +22,20 @@ local void testdata(void);                      /* generate test data       */
 
 int main(int argc, string argv[])
 {   
-    infile = argv[2];
-    tstop = strtod(argv[1], NULL);
-        
-    inputdata();                        /* then read inital data    */
+
+    tstop = strtod(argv[1], NULL);  
+    
+    //Read initial data      
+    if(load_bodies(argv[2]) == STATUS_ERROR)
+        return STATUS_ERROR;                        
     
     rsize = 1.0;                            /* start root w/ unit cube  */
     nstep = 0;                              /* begin counting steps     */
     tout = tnow;                            /* schedule first output    */
 
-    startoutput();                              /* activate output code     */
-    if (nstep == 0) 
-    {
-        treeforce();                            /* do complete calculation  */
-        output();                               /* and report diagnostics   */
-    }
+    treeforce();                            /* do complete calculation  */
+    output();                               /* and report diagnostics   */
+    
 
     if (dt != 0.0)                           /* if time steps requested  */
         while (tstop - tnow > 0.01 * dt) 
@@ -60,7 +59,10 @@ local void treeforce(void)
         Update(p) = TRUE;                       /* update all forces        */
     maketree(bodytab, nbody);                   /* construct tree structure */
     gravcalc();                                 /* compute initial forces   */
-    forcereport();                              /* print force statistics   */
+
+    #ifdef DIAGNOSTICS
+        forcereport();                              /* print force statistics   */
+    #endif
 }
 
 /*

@@ -32,11 +32,11 @@ global bodyptr bodytab;                 /* points to array of bodies        */
  * Prototypes for I/O routines.
  */
 
-void inputdata(void);                   /* read initial data file           */
-void startoutput(void);                 /* open files for output            */
-void forcereport(void);                 /* report on force calculation      */
+int load_bodies(char* filename);               /* read initial data file           */
 void output(void);                      /* perform output operation         */
-void savestate(string);                 /* save system state                */
-void restorestate(string);              /* restore system state             */
+
+#ifdef DIAGNOSTICS
+void forcereport(void);                 /* report on force calculation      */
+#endif
 
 #endif /* ! _treecode_h */
