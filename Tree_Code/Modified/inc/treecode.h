@@ -33,7 +33,7 @@ global bodyptr bodytab;                 /* points to array of bodies        */
  */
 
 int load_bodies(char* filename);               /* read initial data file           */
-void output(void);                      /* perform output operation         */
+int output(void);                      /* perform output operation         */
 
 #ifdef DIAGNOSTICS
 void forcereport(void);                 /* report on force calculation      */

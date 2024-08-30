@@ -28,10 +28,6 @@ int main(int argc, string argv[])
     //Read initial data      
     if(load_bodies(argv[2]) == STATUS_ERROR)
         return STATUS_ERROR;                        
-    
-    rsize = 1.0;                            /* start root w/ unit cube  */
-    nstep = 0;                              /* begin counting steps     */
-    tout = tnow;                            /* schedule first output    */
 
     treeforce();                            /* do complete calculation  */
     output();                               /* and report diagnostics   */

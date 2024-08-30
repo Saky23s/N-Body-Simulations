@@ -1,8 +1,24 @@
-/****************************************************************************/
-/* TREEIO.C: I/O routines for hierarchical N-body code. Public routines:    */
-/* inputdata(), startoutput(), output()       */
-/* Copyright (c) 2001 by Joshua E. Barnes, Honolulu, Hawai`i.               */
-/****************************************************************************/
+/** 
+ * @file treecode.c
+ * @copyright (c) 2001 by Joshua E. Barnes, Honolulu, Hawai`i. 
+ * 
+ * I/O routines for hierarchical N-body code.
+ * 
+ * Modifies the original work of Joshua E. Barnes to remove features
+ * that are not required for this investigation and make the I-O 
+ * system work with our existing framework   
+ * 
+ * This document changed the way that I-O works to that it works with out grafic engine
+ * and with our starting configurations
+ * 
+ * The input has to be N lines with each line containing
+ * x,y,z,mass,vx,vy,vz,radius
+ * this can be done with csv files or in binary using doubles
+ * 
+ * Diagnostics are optional using a macro that can be defined in the makefile
+ * 
+ * @author (modifications) Santiago Salas santiago.salas@estudiante.uam.es             
+ **/
 
 #include "../inc/stdinc.h"
 #include "../inc/mathfns.h"
@@ -19,13 +35,10 @@ local int save_values_csv(int file_number);
 
 #ifdef DIAGNOSTICS
 local void diagnostics(void);
-local void print_diagnostics(void);
+local int print_diagnostics(void);
 #endif
 
-/*
- * Diagnositc output variables.
- */
-
+//Diagnositc output variables.
 local real mtot;                                /* total mass of system     */
 local real etot[3];                             /* Etot, KE, PE of system   */
 local matrix keten;                             /* kinetic energy tensor    */
@@ -35,27 +48,39 @@ local vector cmvel;                             /* center of mass velocity  */
 local vector amvec;                             /* angular momentum vector  */
 local int filenumber = 0;
 
-
-/*
- * OUTPUT: compute diagnostics and output body data.
+int output(void)
+/**
+ * 
+ * This funtion will control the outputs.
+ * 
+ * In case of DIAGNOSTICS being required it will call the print_diagnostics funtion that will calculate
+ * and print the diagnostics
+ * 
+ * It will also check if its time to save the positions of the bodies to a file, in which case it will and
+ * it will schedule the next output 
+ * 
+ * @return status (int): STATUS_ERROR (0) in case of error STATUS_OK(1) in case everything when ok
  */
-
-void output(void)
 {
     real teff;
 
     #ifdef DIAGNOSTICS
-        print_diagnostics();
+        if(print_diagnostics() == STATUS_ERROR)
+            return STATUS_ERROR;
     #endif
 
-    teff = tnow + dt/8;                      /* anticipate slightly...   */
+    //Anticipate slightly...
+    teff = tnow + dt/8;
+
     if (teff >= tout)
     {
-        save_values_bin(filenumber);
-        filenumber++;
-        printf("\n\tdata output to file %d at time %f\n", filenumber, tnow);
-        tout += speed;                              /* schedule next output     */
+        if(save_values_bin(filenumber++) == STATUS_ERROR)
+            return STATUS_ERROR;
+
+        //Schedule next output
+        tout += speed;
     }
+    return STATUS_OK;
 }
 
 int load_bodies(char* filename)
@@ -112,6 +137,8 @@ int load_bodies(char* filename)
                 printf("Error reading %s\n", filename);
                 return STATUS_ERROR;
             }
+
+            //Set type to body
             Type(p) = BODY;
             p++;
         }
@@ -156,6 +183,8 @@ int load_bodies(char* filename)
             Vel(p)[2] = buffer[6];  //vz
 
             //Buffer[7] is radius, currently useless for data, only useful for graphics
+
+            //Set type to body
             Type(p) = BODY;
         }
         fclose(f);
@@ -165,7 +194,18 @@ int load_bodies(char* filename)
     {
         return STATUS_ERROR;
     }
+
+    //Set time to 0
     tnow = 0.0;
+
+    //Start root w/ unit cube
+    rsize = 1.0;
+    
+    //Begin counting steps
+    nstep = 0;
+    //Schedule first output for now
+    tout = tnow;
+
     return STATUS_OK;
 }
 
@@ -235,66 +275,101 @@ local int save_values_csv(int file_number)
 }
 
 #ifdef DIAGNOSTICS
-/*
- * DIAGNOSTICS: compute set of dynamical diagnostics.
- */
 
 local void diagnostics(void)
+/**
+ * Compute set of dynamical diagnostics.
+ * @author 2001 by Joshua E. Barnes, Honolulu, Hawai`i.
+ */
 {
     register bodyptr p;
     real velsq;
     vector tmpv;
     matrix tmpt;
 
-    mtot = 0.0;                                 /* zero total mass          */
-    etot[1] = etot[2] = 0.0;                    /* zero total KE and PE     */
-    CLRM(keten);                                /* zero ke tensor           */
-    CLRM(peten);                                /* zero pe tensor           */
-    CLRV(amvec);                                /* zero am vector           */
-    CLRV(cmpos);                                /* zero c. of m. position   */
-    CLRV(cmvel);                                /* zero c. of m. velocity   */
-    for (p = bodytab; p < bodytab+nbody; p++) { /* loop over all particles  */
-        mtot += Mass(p);                        /* sum particle masses      */
-        DOTVP(velsq, Vel(p), Vel(p));           /* square vel vector        */
-        etot[1] += 0.5 * Mass(p) * velsq;       /* sum current KE           */
-        etot[2] += 0.5 * Mass(p) * Phi(p);      /* and current PE           */
-        MULVS(tmpv, Vel(p), 0.5 * Mass(p));     /* sum 0.5 m v_i v_j        */
+    //Zero total mass
+    mtot = 0.0;
+    //Zero total KE and PE
+    etot[1] = etot[2] = 0.0;
+    //Zero ke tensor
+    CLRM(keten);
+    //Zero pe tensor
+    CLRM(peten);
+    //Zero am vector 
+    CLRV(amvec);
+    //Zero c. of m. position   
+    CLRV(cmpos);
+    //Zero c. of m. velocity
+    CLRV(cmvel);
+
+    //Loop over all particles
+    for (p = bodytab; p < bodytab+nbody; p++)
+    { 
+        //Sum particle masses
+        mtot += Mass(p);
+        //Square vel vector        
+        DOTVP(velsq, Vel(p), Vel(p));
+        //Sum current KE 
+        etot[1] += 0.5 * Mass(p) * velsq;
+        //Sum current PE 
+        etot[2] += 0.5 * Mass(p) * Phi(p);
+        //Sum 0.5 m v_i v_j  
+        MULVS(tmpv, Vel(p), 0.5 * Mass(p));
+        //
         OUTVP(tmpt, tmpv, Vel(p));
         ADDM(keten, keten, tmpt);
-        MULVS(tmpv, Pos(p), Mass(p));           /* sum m r_i a_j            */
+        //Sum m r_i a_j
+        MULVS(tmpv, Pos(p), Mass(p));
         OUTVP(tmpt, tmpv, Acc(p));
         ADDM(peten, peten, tmpt);
-        CROSSVP(tmpv, Vel(p), Pos(p));          /* sum angular momentum     */
+        //Sum angular momentum
+        CROSSVP(tmpv, Vel(p), Pos(p));
         MULVS(tmpv, tmpv, Mass(p));
         ADDV(amvec, amvec, tmpv);
-        MULVS(tmpv, Pos(p), Mass(p));           /* sum cm position          */
+        //Sum cm position  
+        MULVS(tmpv, Pos(p), Mass(p));
         ADDV(cmpos, cmpos, tmpv);
-        MULVS(tmpv, Vel(p), Mass(p));           /* sum cm momentum          */
+        //Sum cm momentum
+        MULVS(tmpv, Vel(p), Mass(p));
         ADDV(cmvel, cmvel, tmpv);
     }
-    etot[0] = etot[1] + etot[2];                /* sum KE and PE            */
-    DIVVS(cmpos, cmpos, mtot);                  /* normalize cm coords      */
+    //Sum KE and PE 
+    etot[0] = etot[1] + etot[2];
+    //Normalize cm coords
+    DIVVS(cmpos, cmpos, mtot);
     DIVVS(cmvel, cmvel, mtot);
 }
 
-local void print_diagnostics(void)
+local int print_diagnostics(void)
+/**
+ * Funtion that call antoher funtion to calculate diagnostics and then prints
+ * the important values to terminal
+ */
 {   
     real cmabs, amabs;
 
-    diagnostics();                              /* compute std diagnostics  */
-    ABSV(cmabs, cmvel);                         /* find magnitude of cm vel */
-    ABSV(amabs, amvec);                         /* find magnitude of J vect */
+    //Compute std diagnostics
+    diagnostics();
+    //Find magnitude of cm vel
+    ABSV(cmabs, cmvel);
+    //Find magnitude of J vect
+    ABSV(amabs, amvec);
+
+    //Print values
     printf("\n    %8s%8s%8s%8s%8s%8s%8s%8s\n",
            "time", "|T+U|", "T", "-U", "-T/U", "|Vcom|", "|Jtot|", "CPUtot");
     printf("    %8.3f%8.5f%8.5f%8.5f%8.5f%8.5f%8.5f%8.3f\n",
            tnow, ABS(etot[0]), etot[1], -etot[2], -etot[1]/etot[2],
            cmabs, amabs, cputime());
+    
+    return STATUS_OK;
 }
 
-/*
- * FORCEREPORT: print staristics on tree construction and force calculation.
- */
 void forcereport(void)
+/**
+ * Funtion that print staristics on tree construction and force calculation.
+ * @author 2001 by Joshua E. Barnes, Honolulu, Hawai`i.
+ */
 {
     printf("\n\t%8s%8s%8s%8s%10s%10s%8s\n",
            "rsize", "tdepth", "ftree",
