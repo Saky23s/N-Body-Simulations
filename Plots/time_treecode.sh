@@ -6,10 +6,6 @@ if [ "$#" -lt 3 ]; then
     exit 1
 fi
 
-#Generate fresh executables
-make clean *>/dev/null
-make all  >/dev/null
-
 #Delete old data just for safety
 if [ -d /dev/shm/data ]; then
   rm -f /dev/shm/data/*.csv
@@ -28,12 +24,12 @@ do
     make all >/dev/null
     ./plummer_configuration $n
 
-    cd ../Tree_Code
+    cd ../Tree_Code/Modified/
     make clean *>/dev/null
     make all >/dev/null
 
-    ./time_treecode_secuencial 100.0 "../Starting_Configurations/bin_files/plummer.bin" "../Plots/times.log"
-    cd ../Plots
+    ./time_treecode_secuencial 100.0 "../../Starting_Configurations/bin_files/plummer.bin" "../../Plots/times.log"
+    cd ../../Plots
 done
 
 

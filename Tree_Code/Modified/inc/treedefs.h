@@ -113,6 +113,8 @@ typedef struct
 #define dt 0.01
 //Time until save
 #define speed 0.1
+//Density smoothing length
+#define eps 0.025
 
 /***************************************/
 //Global funtions
@@ -125,13 +127,15 @@ int gravcalc(void);
 
 /***************************************/
 //Global variables
-//Pointer to root
-global cellptr root;
-//Size of root cell
-global real rsize;
-//Levels in tree
-global int tdepth;
-//Number of bodies
-global int nbody;
+global cellptr root;                    /* pointer to root cell             */
+global real rsize;                      /* side-length of root cell         */
+global int ncell;                       /* count of cells in tree           */
+global int tdepth;                      /* count of levels in tree          */
+global real cputree;                    /* CPU time to build tree           */
+
+global int actmax;                      /* maximum length of active list    */
+global int nbbcalc;                     /* total body-body interactions     */
+global int nbccalc;                     /* total body-cell interactions     */
+global real cpuforce;                   /* CPU time for force calc          */
 
 #endif /* ! _treedefs_h */

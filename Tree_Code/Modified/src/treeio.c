@@ -1,158 +1,85 @@
 /** 
- * @file treecode.c
+ * @file treeio.c
  * @copyright (c) 2001 by Joshua E. Barnes, Honolulu, Hawai`i. 
+ * 
+ * I/O routines for hierarchical N-body code.
  * 
  * Modifies the original work of Joshua E. Barnes to remove features
  * that are not required for this investigation and make the I-O 
  * system work with our existing framework   
  * 
- * This document combines the I-O functions as well as the main functions for the algorthim
+ * This document changed the way that I-O works to that it works with out grafic engine
+ * and with our starting configurations
+ * 
+ * The input has to be N lines with each line containing
+ * x,y,z,mass,vx,vy,vz,radius
+ * this can be done with csv files or in binary using doubles
+ * 
+ * Diagnostics are optional using a macro that can be defined in the makefile
+ * 
  * @author (modifications) Santiago Salas santiago.salas@estudiante.uam.es             
  **/
 
 #include "../inc/stdinc.h"
 #include "../inc/mathfns.h"
 #include "../inc/vectmath.h"
-#include "../../Aux/aux.c"
-#define global                                  // don't default to extern
-#include "../inc/treedefs.h"
+#include "../inc/treecode.h"
+#include "../../../Aux/aux.c"
 #include <sys/types.h>
-#include <sys/time.h>
-#include <string.h>
+#include <sys/stat.h>
+#include <strings.h>
 
-//Internal helpers
-local int treeforce(void);
-local int leapfrog(void);
-int load_bodies(char* filename);
-int save_values_bin(int file_number);
-int save_values_csv(int file_number);
+//Interal helpers
+local int save_values_bin(int file_number);
+local int save_values_csv(int file_number);
 
-//body pointer variable
-local bodyptr bodytab;
+#ifdef DIAGNOSTICS
+local void diagnostics(void);
+local int print_diagnostics(void);
+#endif
 
+//Diagnositc output variables.
+local real mtot;                                /* total mass of system     */
+local real etot[3];                             /* Etot, KE, PE of system   */
+local matrix keten;                             /* kinetic energy tensor    */
+local matrix peten;                             /* potential energy tensor  */
+local vector cmpos;                             /* center of mass position  */
+local vector cmvel;                             /* center of mass velocity  */
+local vector amvec;                             /* angular momentum vector  */
+local int filenumber = 0;
 
-double run_simulation(double T, char* filename)
+int output(void)
 /**
- * Funtion that will create the simulation using the configuration given at filename 
- * and will run the simulation for T internal seconds (this means that the ending positions of the bodies will be in time T)
- *
- * This funtion will calculate the positions of the bodies every in timesteps of 'dt' using the leapfrog method
- * and store them in /dev/shm/data/ as bin files every 'speed' seconds. Speed being a macro in treedefs.h
  * 
- * @param T (double) pointer to the simulation object with the initial values       
- * @param filename (char*): The filepath to the starting configuration file of the simulation, must be a csv or bin file
+ * This funtion will control the outputs.
  * 
- * @return t (double): Real time that the simulation was running or STATUS_ERROR (0) in case of error
-**/
-{   
-    //Internal variable to keep track of csv files written
-    int file_number = 1;
-
-    //Read initial data
-    if(load_bodies(filename) == STATUS_ERROR)
-        return STATUS_ERROR;                     
-
-    //Set starting root w/ unit cube
-    rsize = 1.0;                            
-    
-    //Calculate the number of steps we will have to take to get to T
-    int steps = T / dt; 
-    //Calculate the number of timesteps we must do before saving the data         
-    int save_step = speed / dt;
-
-    printf("Simulating secuentially %d bodies using treecode method\n", nbody);
-
-    //Internal variables to measure time 
-    struct timeval t_start, t_end;
-    gettimeofday ( &t_start, NULL );
-    
-    treeforce();
-    
-    //Run simulation
-    for (int step = 0; step < steps; step++)
-    {
-        //Integrate next step using leapfrog
-        if(leapfrog() == STATUS_ERROR)
-            return STATUS_ERROR;  
-        
-        //Save data if we must
-        if(step % save_step == 0)
-        {
-            if(save_values_bin(file_number) == STATUS_ERROR)
-                return STATUS_ERROR;
-            
-            file_number++;
-        }
-        //Print fancy progress 
-        printf("\rIntegrating: step = %d / %d", step, steps);
-	    fflush(stdout);
-    }
-
-    //Calculate how long the simulation took
-    gettimeofday ( &t_end, NULL );
-    printf("\nSimulation completed in %lf seconds\n",  WALLTIME(t_end) - WALLTIME(t_start));
-
-    freetree(bodytab);
-
-    return WALLTIME(t_end) - WALLTIME(t_start);                                 
-}
-
-
-local int treeforce(void)
-/**
- * This fuction will calculate the acceleration forces of the N bodies using the current positions
+ * In case of DIAGNOSTICS being required it will call the print_diagnostics funtion that will calculate
+ * and print the diagnostics
+ * 
+ * It will also check if its time to save the positions of the bodies to a file, in which case it will and
+ * it will schedule the next output 
  * 
  * @return status (int): STATUS_ERROR (0) in case of error STATUS_OK(1) in case everything when ok
  */
 {
-    bodyptr p;
+    real teff;
 
-    //Loop over all the bodies and set update forces to true
-    for (p = bodytab; p < bodytab+nbody; p++)   
-        Update(p) = TRUE;                       
-    
-    //Construct tree structure
-    if(maketree(bodytab, nbody) == STATUS_ERROR)
-        return STATUS_ERROR;
+    #ifdef DIAGNOSTICS
+        if(print_diagnostics() == STATUS_ERROR)
+            return STATUS_ERROR;
+    #endif
 
-    //Calculate the forces
-    if(gravcalc() == STATUS_ERROR)
-        return STATUS_ERROR;                               
+    //Anticipate slightly...
+    teff = tnow + dt/8;
 
-    return STATUS_OK;
-}
+    if (teff >= tout)
+    {
+        if(save_values_bin(filenumber++) == STATUS_ERROR)
+            return STATUS_ERROR;
 
-local int leapfrog(void)
-/**
- * This funtion will calculate the next values of the simulation using the leapfrog numerical method
- * 
- * @return status (int): STATUS_ERROR (0) in case of error STATUS_OK(1) in case everything when ok
- **/
-{
-    bodyptr p;
-
-    for (p = bodytab; p < bodytab+nbody; p++) 
-    {   
-        //Half step velocity
-        //  vn+1/2 = vn + 1/2dt * a(rn)
-        ADDMULVS(Vel(p), Acc(p), 0.5 * dt);
-
-        //Use that velocity to full step the position
-        //  rn+1 = rn + dt*vn+1/2
-        ADDMULVS(Pos(p), Vel(p), dt);
+        //Schedule next output
+        tout += speed;
     }
-    
-    //Calculate the accelerations with half step velocity and full step position
-    if (treeforce() == STATUS_ERROR)
-        return STATUS_ERROR; 
-
-    for (p = bodytab; p < bodytab+nbody; p++) 
-    { 
-        //Half step the velocity again (making a full step)
-        //  vn+1 = vn+1/2 + 1/2dt * a(rn+1)
-        ADDMULVS(Vel(p), Acc(p), 0.5 * dt);
-    }
-
     return STATUS_OK;
 }
 
@@ -210,6 +137,8 @@ int load_bodies(char* filename)
                 printf("Error reading %s\n", filename);
                 return STATUS_ERROR;
             }
+
+            //Set type to body
             Type(p) = BODY;
             p++;
         }
@@ -254,6 +183,8 @@ int load_bodies(char* filename)
             Vel(p)[2] = buffer[6];  //vz
 
             //Buffer[7] is radius, currently useless for data, only useful for graphics
+
+            //Set type to body
             Type(p) = BODY;
         }
         fclose(f);
@@ -263,10 +194,22 @@ int load_bodies(char* filename)
     {
         return STATUS_ERROR;
     }
+
+    //Set time to 0
+    tnow = 0.0;
+
+    //Start root w/ unit cube
+    rsize = 1.0;
+    
+    //Begin counting steps
+    nstep = 0;
+    //Schedule first output for now
+    tout = tnow;
+
     return STATUS_OK;
 }
 
-int save_values_bin(int file_number)
+local int save_values_bin(int file_number)
 /**
  * This funtion will print to the file f the current positions of all the bodies in the simulation as a bin
  * The file will be stored as /dev/shm/data/FILE_NUMBER.bin
@@ -300,7 +243,7 @@ int save_values_bin(int file_number)
     return STATUS_OK;
 }
 
-int save_values_csv(int file_number)
+local int save_values_csv(int file_number)
 /**
  * This funtion will print to the file f the current positions of all the bodies in the simulation as a csv
  * The file will be stored as /dev/shm/data/FILE_NUMBER.csv
@@ -331,6 +274,109 @@ int save_values_csv(int file_number)
     return STATUS_OK;
 }
 
+#ifdef DIAGNOSTICS
 
+local void diagnostics(void)
+/**
+ * Compute set of dynamical diagnostics.
+ * @author 2001 by Joshua E. Barnes, Honolulu, Hawai`i.
+ */
+{
+    register bodyptr p;
+    real velsq;
+    vector tmpv;
+    matrix tmpt;
 
+    //Zero total mass
+    mtot = 0.0;
+    //Zero total KE and PE
+    etot[1] = etot[2] = 0.0;
+    //Zero ke tensor
+    CLRM(keten);
+    //Zero pe tensor
+    CLRM(peten);
+    //Zero am vector 
+    CLRV(amvec);
+    //Zero c. of m. position   
+    CLRV(cmpos);
+    //Zero c. of m. velocity
+    CLRV(cmvel);
 
+    //Loop over all particles
+    for (p = bodytab; p < bodytab+nbody; p++)
+    { 
+        //Sum particle masses
+        mtot += Mass(p);
+        //Square vel vector        
+        DOTVP(velsq, Vel(p), Vel(p));
+        //Sum current KE 
+        etot[1] += 0.5 * Mass(p) * velsq;
+        //Sum current PE 
+        etot[2] += 0.5 * Mass(p) * Phi(p);
+        //Sum 0.5 m v_i v_j  
+        MULVS(tmpv, Vel(p), 0.5 * Mass(p));
+        //
+        OUTVP(tmpt, tmpv, Vel(p));
+        ADDM(keten, keten, tmpt);
+        //Sum m r_i a_j
+        MULVS(tmpv, Pos(p), Mass(p));
+        OUTVP(tmpt, tmpv, Acc(p));
+        ADDM(peten, peten, tmpt);
+        //Sum angular momentum
+        CROSSVP(tmpv, Vel(p), Pos(p));
+        MULVS(tmpv, tmpv, Mass(p));
+        ADDV(amvec, amvec, tmpv);
+        //Sum cm position  
+        MULVS(tmpv, Pos(p), Mass(p));
+        ADDV(cmpos, cmpos, tmpv);
+        //Sum cm momentum
+        MULVS(tmpv, Vel(p), Mass(p));
+        ADDV(cmvel, cmvel, tmpv);
+    }
+    //Sum KE and PE 
+    etot[0] = etot[1] + etot[2];
+    //Normalize cm coords
+    DIVVS(cmpos, cmpos, mtot);
+    DIVVS(cmvel, cmvel, mtot);
+}
+
+local int print_diagnostics(void)
+/**
+ * Funtion that call antoher funtion to calculate diagnostics and then prints
+ * the important values to terminal
+ */
+{   
+    real cmabs, amabs;
+
+    //Compute std diagnostics
+    diagnostics();
+    //Find magnitude of cm vel
+    ABSV(cmabs, cmvel);
+    //Find magnitude of J vect
+    ABSV(amabs, amvec);
+
+    //Print values
+    printf("\n    %8s%8s%8s%8s%8s%8s%8s%8s\n",
+           "time", "|T+U|", "T", "-U", "-T/U", "|Vcom|", "|Jtot|", "CPUtot");
+    printf("    %8.3f%8.5f%8.5f%8.5f%8.5f%8.5f%8.5f%8.3f\n",
+           tnow, ABS(etot[0]), etot[1], -etot[2], -etot[1]/etot[2],
+           cmabs, amabs, cputime());
+    
+    return STATUS_OK;
+}
+
+void forcereport(void)
+/**
+ * Funtion that print staristics on tree construction and force calculation.
+ * @author 2001 by Joshua E. Barnes, Honolulu, Hawai`i.
+ */
+{
+    printf("\n\t%8s%8s%8s%8s%10s%10s%8s\n",
+           "rsize", "tdepth", "ftree",
+           "actmax", "nbbtot", "nbctot", "CPUfc");
+    printf("\t%8.1f%8d%8.3f%8d%10d%10d%8.3f\n",
+           rsize, tdepth, (nbody + ncell - 1) / ((real) ncell),
+           actmax, nbbcalc, nbccalc, cpuforce);
+}
+
+#endif

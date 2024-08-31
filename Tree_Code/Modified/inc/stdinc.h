@@ -13,13 +13,15 @@
 #ifndef _stdinc_h
 #define _stdinc_h
 
-
 //Always include stdio.h and stdlib.h.
 #include <stdio.h>
 #include <stdlib.h>
 
+/***************************************/
 //Local synonym for static declares an object as local to a source file.
 #define local static
+
+/***************************************/
 
 //Define booleans 
 typedef short int bool;
@@ -33,19 +35,24 @@ typedef short int bool;
 #define STATUS_ERROR 0
 #define STATUS_OK 1
 
-// Convert 'struct timeval' into seconds in double prec. floating point
-#define WALLTIME(t) ((double)(t).tv_sec + 1e-6 * (double)(t).tv_usec)
-
+/***************************************/
 //Define real
 typedef double real, *realptr;
 
+/***************************************/
+//Returns the absolute value of its argument.
+#define ABS(x)   (((x)<0)?-(x):(x))
 //Returns the argument with the highest value.
 #define MAX(a,b) (((a)>(b))?(a):(b))
-
 //Returns the argument with the lowest value.
 #define MIN(a,b) (((a)<(b))?(a):(b))
 
+/***************************************/
+//Prototypes for misc. functions in libZeno.a.
+double cputime(void); 
+void error(char*, ...); 
+
+/***************************************/
 //Main funtion of the simulation, creates, runs and frees a simulation
 double run_simulation(double T, char* filename);
-
 #endif  /* ! _stdinc_h */

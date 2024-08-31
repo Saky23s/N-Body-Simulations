@@ -169,4 +169,21 @@ typedef real matrix[NDIM][NDIM];
     (v)[2] += (u)[2] * (s) + (w)[2] * (r);                              \
 }
 
+#define ABSV(s,v)               /* ABSolute value of a Vector */        \
+{                                                                       \
+    real _tmp;                                                          \
+    int _i;                                                             \
+    _tmp = 0.0;                                                         \
+    for (_i = 0; _i < NDIM; _i++)                                       \
+        _tmp += (v)[_i] * (v)[_i];                                      \
+    (s) = rsqrt(_tmp);                                                  \
+}
+
+#define CROSSVP(v,u,w)          /* CROSS Vector Product */              \
+{                                                                       \
+    (v)[0] = (u)[1]*(w)[2] - (u)[2]*(w)[1];                             \
+    (v)[1] = (u)[2]*(w)[0] - (u)[0]*(w)[2];                             \
+    (v)[2] = (u)[0]*(w)[1] - (u)[1]*(w)[0];                             \
+}
+
 #endif  /* ! _vectmath_h */

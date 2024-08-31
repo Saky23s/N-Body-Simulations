@@ -35,7 +35,6 @@ local int cellhist[MAXLEVEL];
 //Count subnodes by level
 local int subnhist[MAXLEVEL];
 
-int maketree(bodyptr btab, int nbody)
 /**
  * Main funtion of three construction
  * 
@@ -45,35 +44,45 @@ int maketree(bodyptr btab, int nbody)
  * 
  * @return status (int): STATUS_ERROR (0) in case of error STATUS_OK(1) in case everything when ok
  */
+int maketree(bodyptr btab, int nbody)
 {
+    double cpustart;
     bodyptr p;
-    
+    int i;
+
+    //Record time at start
+    cpustart = cputime();
+
     //Flush existing tree or allocate memory 
-    if (newtree() == STATUS_ERROR)
+    if(newtree() == STATUS_ERROR)
         return STATUS_ERROR;
 
     //Allocate the root cell
-    root = makecell(); 
+    root = makecell();
+    if(root == NULL)
+        return STATUS_ERROR;
+        
     //Initialize the midpoint 
     CLRV(Pos(root));
 
     //And expand cell to fit
     if(expandbox(btab, nbody) == STATUS_ERROR)
         return STATUS_ERROR;
-    
+
     //Insert all bodies into the tree
     for (p = btab; p < btab+nbody; p++)
-    {   
+    {
         if(loadbody(p) == STATUS_ERROR)
             return STATUS_ERROR;
-    }                        
+    }
 
     //Init depth to 0
-    tdepth = 0;
-
+    tdepth = 0;     
     //Init tree histograms
-    for (int i = 0; i < MAXLEVEL; i++)              
+    for (i = 0; i < MAXLEVEL; i++)
+    {
         cellhist[i] = subnhist[i] = 0;
+    }
 
     //Find center-of-mass coordinates
     if(hackcofm(root, rsize, 0) == STATUS_ERROR)
@@ -81,8 +90,10 @@ int maketree(bodyptr btab, int nbody)
 
     //Add next and more links
     if(threadtree((nodeptr) root, NULL) == STATUS_ERROR)
-        return STATUS_ERROR;
+        return STATUS_ERROR; 
 
+    //Store elapsed CPU time
+    cputree = cputime() - cpustart;
 
     return STATUS_OK;
 }
@@ -99,7 +110,7 @@ local int newtree(void)
     nodeptr p;
 
     //If there already are cells to reclaim
-    if (! firstcall) 
+    if (!firstcall) 
     {   
         //Starting with the root
         p = (nodeptr) root; 
@@ -116,12 +127,16 @@ local int newtree(void)
             }
             //If we found a body skip it
             else
+            {
                 p = Next(p);
+            }
         }
     }
     //Nothing to reclaim
     else
+    {
         firstcall = FALSE;
+    }
 
     //Flush existing tree
     root = NULL;                                
@@ -143,24 +158,29 @@ local cellptr makecell(void)
     //If there is no free cells left allocate a new one
     if (freecell == NULL)  
     {
-        c = (cellptr) calloc(sizeof(cell), 1);
+        c = (cellptr) calloc(sizeof(cell), 1); 
         if(c == NULL)
             return NULL;
-    }                     
+    }
     //Else take the free cell in front of the list
     else 
     {
         c = (cellptr) freecell;
         freecell = Next(c);
     }
-    
+
     //Initialize node
-    Type(c) = CELL;
+    Type(c) = CELL; 
     Update(c) = FALSE;
-    
+
     //Set subcells to empty
-    for (i = 0; i < NSUB; i++)
-        Subp(c)[i] = NULL;
+    for (i = 0; i < NSUB; i++) 
+    {
+        Subp(c)[i] = NULL;                      
+    } 
+
+    //Count one more cell
+    ncell++;
     
     //Return pointer to cell
     return c;
@@ -180,24 +200,26 @@ local int expandbox(bodyptr btab, int nbody)
     int k;
 
     //Variable to keep track of max value
-    dmax = 0.0;  
+    dmax = 0.0;
+
     //Loop over all bodies and dimensions
-    for (p = btab; p < btab+nbody; p++)
+    for (p = btab; p < btab+nbody; p++) 
     {
         for (k = 0; k < NDIM; k++) 
-        {   
-            //Find distance to midpoint and if its the biggest yet store it
-            d = rabs(Pos(p)[k] - Pos(root)[k]);
+        {       
+            //Find distance to midpoint and if its the biggest yet store it        
+            d = rabs(Pos(p)[k] - Pos(root)[k]); 
             if (d > dmax)
                 dmax = d;
         }
     }
 
     //Loop until a value fits by doubling the box value each time
-    while (rsize < 2 * dmax)
+    while (rsize < 2 * dmax) 
+    {
         rsize = 2 * rsize;
-    
-    return STATUS_OK;
+    }    
+    return STATUS_OK;              
 }
 
 local int loadbody(bodyptr p)
@@ -216,47 +238,48 @@ local int loadbody(bodyptr p)
     //Starting with the root
     q = root;
     //Get subsell
-    qind = subindex(p, q);
+    qind = subindex(p, q); 
     //Cell size
     qsize = rsize;
+
     //Loop into descending tree
-    while (Subp(q)[qind] != NULL)
+    while (Subp(q)[qind] != NULL) 
     {   
         //If we reach a body
-        if (Type(Subp(q)[qind]) == BODY) 
-        {   
-            //Check taht positions differ
+        if (Type(Subp(q)[qind]) == BODY)
+        {     
+            //Check that positions differ
             DOTPSUBV(dist2, distv, Pos(p), Pos(Subp(q)[qind]));
-            if (dist2 == 0.0)
+            if (dist2 == 0.0)   
             {
-                printf("loadbody: two bodies have same position\n");
+                error("loadbody: two bodies have same position\n");
                 return STATUS_ERROR;
             }
-
             //Allocate a new cell
             c = makecell();
             if(c == NULL)
                 return STATUS_ERROR;
 
             //Init mid point and offset from parent
-            for (k = 0; k < NDIM; k++)
+            for (k = 0; k < NDIM; k++)  
             {
                 Pos(c)[k] = Pos(q)[k] + (Pos(p)[k] < Pos(q)[k] ? - qsize : qsize) / 4;
+
             }
             //Put the body in the cell, and link cell to tree
             Subp(c)[subindex((bodyptr) Subp(q)[qind], c)] = Subp(q)[qind];
             Subp(q)[qind] = (nodeptr) c;
         }
         //Advance to the next level
-        q = (cellptr) Subp(q)[qind];
+        q = (cellptr) Subp(q)[qind]; 
         //get next index
         qind = subindex(p, q);
         //Shrink current cell
         qsize = qsize / 2;
     }
+    
     //Found place for body, store it
     Subp(q)[qind] = (nodeptr) p;
-    
     return STATUS_OK;
 }
 
@@ -282,7 +305,7 @@ local int subindex(bodyptr p, cellptr q)
         if (Pos(q)[k] <= Pos(p)[k])
             ind += NSUB >> (k + 1);
     }
-    return (ind);
+    return ind;
 }
 
 local int hackcofm(cellptr p, real psize, int lev)
@@ -309,69 +332,65 @@ local int hackcofm(cellptr p, real psize, int lev)
     //Count cells by level
     cellhist[lev]++;
     //Init cell total mass
-    Mass(p) = 0.0;
+    Mass(p) = 0.0; 
     //Center mass position
-    CLRV(cmpos);     
-
+    CLRV(cmpos);
     //Loop over subnodes
-    for (i = 0; i < NSUB; i++)
+    for (i = 0; i < NSUB; i++) 
     {   
         //Skip null subnodes
         if ((q = Subp(p)[i]) != NULL) 
-        {
+        {   
             //Count existing subnodes
             subnhist[lev]++;
+            
             //If node type is cell do the same for that subnode
-            if (Type(q) == CELL)                
+            if (Type(q) == CELL)
+            {
                 hackcofm((cellptr) q, psize/2, lev+1);
-
+            }
+            
             //Propagate update request 
             Update(p) |= Update(q);
             //Accumulate total mass
-            Mass(p) += Mass(q);
+            Mass(p) += Mass(q); 
             //Weight position by mass
             MULVS(tmpv, Pos(q), Mass(q));
             //And add sum to center-of-mass position
-            ADDV(cmpos, cmpos, tmpv);
+            ADDV(cmpos, cmpos, tmpv); 
         }
-    }
-
-    //If cell has mass find center of mass position
+    }   
+    //If cell has mass find center of mass position             
     if (Mass(p) > 0.0) 
-    {
+    {                        
         DIVVS(cmpos, cmpos, Mass(p));
-    }
+    } 
     //But if there is no mass inside use geo. center for now
     else 
-    {
+    { 
         SETV(cmpos, Pos(p));
     }
 
     //Check center of mass of cell
-    for (k = 0; k < NDIM; k++) 
+    for (k = 0; k < NDIM; k++)
     {   
         //If its actually outside the cell
         if (cmpos[k] < Pos(p)[k] - psize/2 || Pos(p)[k] + psize/2 <= cmpos[k])
         {
-            printf("hackcofm: tree structure error\n");
+            error("hackcofm: tree structure error\n");
             return STATUS_ERROR;
         }
-    }
+    }  
 
     //Set critical radius
     if(setrcrit(p, cmpos, psize) == STATUS_ERROR)
-        return STATUS_ERROR;
+        return STATUS_ERROR; 
 
     //Set center of mass position
     SETV(Pos(p), cmpos);
 
     return STATUS_OK;
 }
-
-/*
- * SETRCRIT: assign critical radius for cell p, using center-of-mass
- * position cmpos and cell size psize.
- */
 
 local int setrcrit(cellptr p, vector cmpos, real psize)
 /**
@@ -419,23 +438,24 @@ local int threadtree(nodeptr p, nodeptr n)
 
     //Set link to next node
     Next(p) = n;
-
+    
     //If descendents to thread
     if (Type(p) == CELL) 
-    { 
-        ndesc = 0; 
-        
+    {
+        ndesc = 0;
+
         //Count occupied subcells and store it in the table
         for (i = 0; i < NSUB; i++)
         {
             if (Subp(p)[i] != NULL)
                 desc[ndesc++] = Subp(p)[i];
         }
+
         //Link more as the first one on the table
-        More(p) = desc[0]; 
+        More(p) = desc[0];
         //And thread last one to next
         desc[ndesc] = n;
-        
+
         //Loop over descendants and thread them together
         for (i = 0; i < ndesc; i++)
         {
@@ -443,10 +463,8 @@ local int threadtree(nodeptr p, nodeptr n)
                 return STATUS_ERROR;
         }
     }
-
     return STATUS_OK;
 }
-
 
 void freetree(bodyptr btab)
 /**
@@ -487,4 +505,3 @@ void freetree(bodyptr btab)
 
     free(btab);
 }
-
