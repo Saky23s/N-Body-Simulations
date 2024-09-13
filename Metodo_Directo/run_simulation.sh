@@ -21,8 +21,8 @@ do
             TYPE="cuda"
             ;;
         
-        -h)
-            TYPE="hermite"
+        -t)
+            TYPE="secuencial_new"
             ;;
         -w)
             WINDOW=true

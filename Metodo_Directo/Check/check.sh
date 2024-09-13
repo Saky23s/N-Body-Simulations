@@ -26,6 +26,7 @@ cd Check/
 
 cuda=false
 Open_MP=false
+test=false
 
 for arg in "$@" 
 do
@@ -49,6 +50,9 @@ do
         -c) 
             cuda=true
             ;;
+        -t)
+            test=true
+            ;;
         *)
             ;;
     esac
@@ -71,6 +75,45 @@ do
   cd ../
   ./simulation_secuencial 0.1 ../Starting_Configurations/bin_files/random.bin >/dev/null
   cp /dev/shm/data/1.bin Check/secuential.bin >/dev/null
+  
+  if [ $test == true ]; then
+    #Delete old data
+    if [ -d /dev/shm/data ]; then
+      rm -f /dev/shm/data/*.csv 2>/dev/null
+      rm -f /dev/shm/data/*.bin 2>/dev/null
+    else
+      mkdir /dev/shm/data 2>/dev/null
+    fi
+
+    ./simulation_secuencial_new 0.1 ../Starting_Configurations/bin_files/random.bin >/dev/null
+
+    cp /dev/shm/data/1.bin Check/test.bin >/dev/null
+
+    ./simulation_OpenMP_new 0.1 ../Starting_Configurations/bin_files/random.bin >/dev/null
+
+    cp /dev/shm/data/1.bin Check/testo.bin >/dev/null
+
+    cd Check/
+    ./compare $1 secuential.bin test.bin >/dev/null
+
+    if [ $? == 1 ];
+    then
+      echo -e "${CLEAR_LINE}${GREEN} PASSED ${NC} $n bodies"
+    else
+      echo -e "${CLEAR_LINE}${RED} FAILED ${NC} $n bodies"
+      exit 0
+    fi
+
+    ./compare $1 secuential.bin testo.bin >/dev/null
+
+    if [ $? == 1 ];
+    then
+      echo -e "${CLEAR_LINE}${GREEN} PASSED ${NC} $n bodies"
+    else
+      echo -e "${CLEAR_LINE}${RED} FAILED ${NC} $n bodies"
+      exit 0
+    fi
+  fi
 
   if [ $cuda == true -a $Open_MP == true ]; then
     #Delete old data
