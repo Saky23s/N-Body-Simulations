@@ -1,72 +1,74 @@
-CC:=gcc
-CFLAGS+=-std=c11 -fopenmp
-LDLIBS+=-lm -pthread
 
-CUDA_CC:=nvcc 
-CUDA_FLAGS+=
-CUDA_LDLIBS+=-lm 
-
-SRC_FILES:=src/main.c 
-CUDA_SRC_FILES:=src/main.cpp
-
-all: simulation_secuencial simulation_OpenMP simulation_secuencial_new simulation_OpenMP_new
-
-simulation_secuencial: $(SRC_FILES) src/simulation_secuencial.c
-	$(CC) $^ $(CFLAGS) $(LDLIBS) -o $@ $(LDLIBS)
+all: simulation_secuencial simulation_OpenMP simulation_cuda
 
 ########################################################################
 # Secuencial:
-CCFLAGS = -DLINUX
-LDFLAGS =
-OPTFLAG = -O3
+S_CCFLAGS = -DLINUX
+S_LDFLAGS =
+S_OPTFLAG = -O3
 
-simulation_secuencial_new: secuencial/main.c metodo_directo_secuencial.o metodo_directo_io_secuencial.o metodo_directo_grav_secuencial.o 
-	$(CC) $(LDFLAGS) -o simulation_secuencial_new \
-	  secuencial/main.c metodo_directo_secuencial.o metodo_directo_io_secuencial.o metodo_directo_grav_secuencial.o -lm
+simulation_secuencial: main.c metodo_directo_secuencial.o metodo_directo_io_secuencial.o metodo_directo_grav_secuencial.o 
+	$(CC) $(S_LDFLAGS) -o simulation_secuencial \
+	  main.c metodo_directo_secuencial.o metodo_directo_io_secuencial.o metodo_directo_grav_secuencial.o -lm
 	rm *.o
 
 metodo_directo_secuencial.o: secuencial/src/metodo_directo.c secuencial/inc/metodo_directo.h secuencial/inc/medoto_directo_defs.h
-	$(CC) $(CCFLAGS) $(DIAGNOSTICS) -c secuencial/src/metodo_directo.c -o metodo_directo_secuencial.o
+	$(CC) $(S_CCFLAGS) $(DIAGNOSTICS) -c secuencial/src/metodo_directo.c -o metodo_directo_secuencial.o
 
 metodo_directo_io_secuencial.o: secuencial/src/metodo_directo_io.c secuencial/inc/metodo_directo.h secuencial/inc/medoto_directo_defs.h
-	$(CC) $(CCFLAGS) $(DIAGNOSTICS) -c secuencial/src/metodo_directo_io.c -o metodo_directo_io_secuencial.o
+	$(CC) $(S_CCFLAGS) $(DIAGNOSTICS) -c secuencial/src/metodo_directo_io.c -o metodo_directo_io_secuencial.o
 
 metodo_directo_grav_secuencial.o: secuencial/src/metodo_directo_grav.c secuencial/inc/medoto_directo_defs.h
-	$(CC) $(CCFLAGS) $(OPTFLAG) $(DIAGNOSTICS) -c secuencial/src/metodo_directo_grav.c -o metodo_directo_grav_secuencial.o
+	$(CC) $(S_CCFLAGS) $(S_OPTFLAG) $(DIAGNOSTICS) -c secuencial/src/metodo_directo_grav.c -o metodo_directo_grav_secuencial.o
 
 ########################################################################
 
 # OpenMP:
-CCFLAGS = -DLINUX
-LDFLAGS = -lm -pthread
-OPTFLAG = -O3
+O_CCFLAGS = -DLINUX
+O_LDFLAGS = -lm -pthread
+O_OPTFLAG = -O3
 
-simulation_OpenMP_new: openmp/main.c metodo_directo_openmp.o metodo_directo_io_openmp.o metodo_directo_grav_openmp.o 
-	$(CC) $(LDFLAGS) -o simulation_OpenMP_new \
-	  openmp/main.c metodo_directo_openmp.o metodo_directo_io_openmp.o metodo_directo_grav_openmp.o -lm
+simulation_OpenMP: main.c metodo_directo_openmp.o metodo_directo_io_openmp.o metodo_directo_grav_openmp.o 
+	$(CC) $(O_LDFLAGS) -o simulation_OpenMP \
+	  main.c metodo_directo_openmp.o metodo_directo_io_openmp.o metodo_directo_grav_openmp.o -lm
 	rm *.o
 
 metodo_directo_openmp.o: openmp/src/metodo_directo.c openmp/inc/metodo_directo.h openmp/inc/medoto_directo_defs.h
-	$(CC) $(CCFLAGS) $(DIAGNOSTICS) -c openmp/src/metodo_directo.c -o metodo_directo_openmp.o
+	$(CC) $(O_CCFLAGS) $(DIAGNOSTICS) -c openmp/src/metodo_directo.c -o metodo_directo_openmp.o
 
 metodo_directo_io_openmp.o: openmp/src/metodo_directo_io.c openmp/inc/metodo_directo.h openmp/inc/medoto_directo_defs.h
-	$(CC) $(CCFLAGS) $(DIAGNOSTICS) -c openmp/src/metodo_directo_io.c -o metodo_directo_io_openmp.o
+	$(CC) $(O_CCFLAGS) $(DIAGNOSTICS) -c openmp/src/metodo_directo_io.c -o metodo_directo_io_openmp.o
 
 metodo_directo_grav_openmp.o: openmp/src/metodo_directo_grav.c openmp/inc/medoto_directo_defs.h
-	$(CC) $(CCFLAGS) $(OPTFLAG) $(DIAGNOSTICS) -c openmp/src/metodo_directo_grav.c -o metodo_directo_grav_openmp.o
+	$(CC) $(O_CCFLAGS) $(O_OPTFLAG) $(DIAGNOSTICS) -c openmp/src/metodo_directo_grav.c -o metodo_directo_grav_openmp.o
 
 ########################################################################
 
-simulation_OpenMP: $(SRC_FILES) src/simulation_OpenMP.c
-	$(CC) $^ $(CFLAGS) $(LDLIBS) -o $@ $(LDLIBS)
+# cuda:
+CUDA_CC:=nvcc 
+LDFLAGS_CUDA = -lm
+OPTFLAG_CUDA = -O3
 
-simulation_cuda: $(CUDA_SRC_FILES) src/simulation_cuda.cu
-	$(CUDA_CC) $^ $(CUDA_FLAGS) $(CUDA_LDLIBS) -o $@ $(CUDA_LDLIBS)
+simulation_cuda: main.cpp metodo_directo_cuda.o metodo_directo_io_cuda.o metodo_directo_grav_cuda.o 
+	$(CUDA_CC) $(LDFLAGS_CUDA) -o simulation_cuda \
+	  main.cpp metodo_directo_cuda.o metodo_directo_io_cuda.o metodo_directo_grav_cuda.o -lm
+	rm *.o
+
+metodo_directo_cuda.o: cuda/src/metodo_directo.cu cuda/inc/metodo_directo.h cuda/inc/medoto_directo_defs.h
+	$(CUDA_CC) $(DIAGNOSTICS) -c cuda/src/metodo_directo.cu -o metodo_directo_cuda.o
+
+metodo_directo_io_cuda.o: cuda/src/metodo_directo_io.cu cuda/inc/metodo_directo.h cuda/inc/medoto_directo_defs.h
+	$(CUDA_CC) $(DIAGNOSTICS) -c cuda/src/metodo_directo_io.cu -o metodo_directo_io_cuda.o
+
+metodo_directo_grav_cuda.o: cuda/src/metodo_directo_grav.cu cuda/inc/medoto_directo_defs.h
+	$(CUDA_CC) $(OPTFLAG_CUDA) $(DIAGNOSTICS) -c cuda/src/metodo_directo_grav.cu -o metodo_directo_grav_cuda.o
+
+########################################################################
+
 
 clean:
-	rm simulation_OpenMP 2>/dev/null
 	rm simulation_secuencial 2>/dev/null
-	rm simulation_secuencial_new 2>/dev/null
+	rm simulation_OpenMP 2>/dev/null
 	rm simulation_cuda 2>/dev/null
 	rm *.o
 

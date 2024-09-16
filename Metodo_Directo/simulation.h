@@ -5,8 +5,8 @@ typedef struct _Simulation Simulation;
 
 #define G 1
 //#define G 6.674299999999999e-08 
-#define dt 0.01
-#define speed 0.01
+#define dt 0.1
+#define speed 0.1
 #define softening 0.1
 
 double run_simulation(double T, char* filepath);
@@ -17,5 +17,7 @@ double run_simulation(double T, char* filepath);
 #define STATUS_ERROR 0
 #define STATUS_OK 1
 
-#endif
+//Define real
+typedef double real, *realptr;
 
+#endif

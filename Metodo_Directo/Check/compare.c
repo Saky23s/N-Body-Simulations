@@ -46,6 +46,6 @@ int main(int argc, char **argv)
     if(error < MAX_ERROR)
         return 1;
 
-    //printf("%.15lf\n", error);
+    printf("%.15lf\n", error);
     return 0;
 }

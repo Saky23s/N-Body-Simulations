@@ -5,10 +5,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <sys/time.h>
-#include "simulation.h"
-
-//Define real
-typedef double real, *realptr;
+#include "../../simulation.h"
 
 /**
  * @struct Simulation

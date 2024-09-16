@@ -1,4 +1,3 @@
-
 /** 
  * @file metodo_directo_io.c
  * @author Santiago Salas santiago.salas@estudiante.uam.es
@@ -15,10 +14,28 @@
 #include "../inc/medoto_directo_defs.h"
 #include "../../../Aux/aux.c"
 
+#define cudaErrorCheck(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+
+/**
+ * Function to check errors in CUDA. 
+ * 
+ * Extracted from StackOverflow 
+ * @link https://stackoverflow.com/a/14038590
+ */
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
+{
+    if (code != cudaSuccess) 
+    {
+        fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+        if (abort) exit(code);
+    }
+}
+
 //Internal helpers
 int simulation_allocate_memory(Simulation* simulation);
 int save_values_bin(Simulation* simulation, int filenumber);
 int save_values_csv(Simulation* simulation, int filenumber);
+int calculate_kernel_size(Simulation* simulation);
 
 //Internal variables to control file output
 #define FILENAME_MAX_SIZE 256
@@ -50,7 +67,7 @@ int output(Simulation* simulation, int* filenumber)
     {   
         //Increment filenumber by one
         (*filenumber) += 1;
-        
+
         //Save
         if(save_values_bin(simulation, *filenumber) == STATUS_ERROR)
             return STATUS_ERROR;
@@ -98,6 +115,12 @@ Simulation* load_bodies(char* filepath)
         //Get the number of bodies by the number of lines minus the header
         simulation->n = count_lines_csv(f) - 1;
         if(simulation->n <= 0)
+        {
+            return NULL;
+        }
+
+        //Calculate kernel sizes
+        if (calculate_kernel_size(simulation) == STATUS_ERROR)
         {
             return NULL;
         }
@@ -150,11 +173,18 @@ Simulation* load_bodies(char* filepath)
         //The number of bodies is the size of the file / size of each body
         simulation->n = size / (sizeof(real) * 8); 
 
+        //Calculate kernel sizes
+        if (calculate_kernel_size(simulation) == STATUS_ERROR)
+        {
+            return NULL;
+        }
+
         //Memory allocation for the arrays
         if(simulation_allocate_memory(simulation) != STATUS_OK)
         {
             return NULL;
         }
+        
         
         //Buffer for one body
         real buffer[8];
@@ -183,18 +213,22 @@ Simulation* load_bodies(char* filepath)
         return NULL;
     }
 
+    //Copy masses to cuda memory
+    cudaMemcpy( simulation->d_masses,  simulation->masses, simulation->n * sizeof(simulation->masses[0]),cudaMemcpyHostToDevice);
+
     //Set time to 0
     simulation-> tnow = 0.0;
    
     //Schedule first output for now
     simulation->tout =  simulation->tnow;
+
     //Return simulation
     return simulation;
 }
 
 int simulation_allocate_memory(Simulation* simulation)
 /**
- * Funtion that allocates all of the internal arrays of the simulation
+ * Funtion that allocates all of the internal memory needed for the simulation
  * 
  * @param simulation (Simulation*): pointer to a fresh simulation in which all of the internal pointer still have to be allocated
  * @return status (int): STATUS_ERROR (0) in case of error STATUS_OK(1) in case everything when ok
@@ -206,15 +240,30 @@ int simulation_allocate_memory(Simulation* simulation)
     simulation->masses = (realptr) malloc (simulation->n * sizeof(simulation->masses[0]));
     simulation->positions = (realptr) malloc (simulation->n * 3 * sizeof(simulation->positions[0]));
     simulation->velocity = (realptr) malloc (simulation->n * 3 * sizeof(simulation->velocity[0]));
+
     simulation->acceleration = (realptr) malloc (simulation->n * 3 * sizeof(simulation->acceleration[0]));
-    
-    if(simulation->masses == NULL || simulation->positions == NULL || simulation->velocity == NULL || simulation->acceleration == NULL)
+    simulation->block_holder = (realptr) malloc (simulation->n  * simulation->gridDims.y * 3 * sizeof(simulation->block_holder[0]));
+
+    if(simulation->masses == NULL || simulation->block_holder == NULL || simulation->positions == NULL || simulation->velocity == NULL || simulation->acceleration == NULL )
     {
         return STATUS_ERROR;
     }
 
+    cudaError_t status;
+
+    //Cuda mallocs
+    status = cudaMalloc(&simulation->d_masses, simulation->n * sizeof(simulation->d_masses[0]));
+    cudaErrorCheck(status);
+
+    status = cudaMalloc(&simulation->d_position, simulation->n * 3 * sizeof(simulation->d_position[0]));
+    cudaErrorCheck(status);
+
+    status = cudaMalloc(&simulation->d_k_velocity, simulation->n  * simulation->gridDims.y * 3 * sizeof(simulation->d_k_velocity[0]));
+    cudaErrorCheck(status);
+
     return STATUS_OK;
 }
+
 
 int save_values_csv(Simulation* simulation, int filenumber)
 /**
@@ -302,6 +351,37 @@ int save_values_bin(Simulation* simulation, int filenumber)
     return STATUS_OK;
 }
 
+int calculate_kernel_size(Simulation* simulation)
+/**
+ * A simple funtion to calculate the most efficient kernel sizes for this simulation depending of the size of N
+ * @param simulation (Simulation*): a pointer to the simulation
+ */
+{
+    if(simulation == NULL)
+        return STATUS_ERROR;
+    
+    unsigned int x = 32;
+    unsigned int y = 32;
+
+    for(; y <= 1024; x/=2, y*=2)
+    {
+        if(simulation->n < y)
+        {
+            simulation->threadBlockDims = {x, y, 1} ; //1024 threads per block
+            simulation->gridDims = { (unsigned int) ceil(simulation->n/(double) x), (unsigned int) ceil( simulation->n/(double) y), 1 }; 
+            return STATUS_OK;
+        }
+    }
+
+    x = 1;
+    y = 1024;
+
+    simulation->threadBlockDims = {x, y, 1} ; //1024 threads per block
+    simulation->gridDims = { (unsigned int) ceil(simulation->n/(double) x), (unsigned int) ceil( simulation->n/(double) y), 1 }; 
+
+    return STATUS_OK;
+}
+
 void free_simulation(Simulation* simulation)
 /**
  * This funtion frees all the memory used by the simulation
@@ -314,6 +394,11 @@ void free_simulation(Simulation* simulation)
     free(simulation->positions);
     free(simulation->velocity);
     free(simulation->acceleration);
+    free(simulation->block_holder);
+
+    cudaFree(simulation->d_masses);
+    cudaFree(simulation->d_position);
+    cudaFree(simulation->d_k_velocity);
 
     //Frees the simulation object itself
     free(simulation);

@@ -53,6 +53,8 @@ double run_simulation(double T, char* filename)
     //Number of steps taken
     int nstep = 0;
 
+    int filenumber = 0;
+
     //Internal variables to measure time 
     struct timeval t_start, t_end;
     gettimeofday ( &t_start, NULL );
@@ -65,7 +67,7 @@ double run_simulation(double T, char* filename)
     }
 
     //And save it
-    if(output(simulation) == STATUS_ERROR)
+    if(output(simulation, &filenumber) == STATUS_ERROR)
     {
         free_simulation(simulation);
         return STATUS_ERROR;
@@ -88,7 +90,7 @@ double run_simulation(double T, char* filename)
         simulation->tnow = simulation->tnow + dt;
 
         //Save data if we must
-        if(output(simulation) == STATUS_ERROR)
+        if(output(simulation, &filenumber) == STATUS_ERROR)
         {
             free_simulation(simulation);
             return STATUS_ERROR;

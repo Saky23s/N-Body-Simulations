@@ -42,7 +42,7 @@ double run_simulation(double T, char* filename)
         return STATUS_ERROR;  
 
     //Print starting message
-    printf("Simulating secuentially %d bodies\n", simulation->n);
+    printf("Simulating with CUDA %d bodies\n", simulation->n);
     
     //Calculate the number of steps we will have to take to get to T
     int steps = T / dt;

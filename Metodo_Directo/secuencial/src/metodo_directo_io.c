@@ -16,14 +16,13 @@
 
 //Internal helpers
 int simulation_allocate_memory(Simulation* simulation);
-int save_values_bin(Simulation* simulation);
-int save_values_csv(Simulation* simulation);
+int save_values_bin(Simulation* simulation, int filenumber);
+int save_values_csv(Simulation* simulation, int filenumber);
 
 //Internal variables to control file output
 #define FILENAME_MAX_SIZE 256
-static int filenumber = 0;
 
-int output(Simulation* simulation)
+int output(Simulation* simulation, int* filenumber)
 /**
  * 
  * This funtion will control the outputs.
@@ -32,6 +31,7 @@ int output(Simulation* simulation)
  * it will schedule the next output 
  * 
  * @param simulation (Simulation*):  a pointer to the simulation being outputed
+ * @param filenumber (*int): ponter to the number of the file to use in the output, if a writte is made it will automatically be incremented by 1
  * @return status (int): STATUS_ERROR (0) in case of error STATUS_OK(1) in case everything when ok
  */
 {
@@ -46,8 +46,12 @@ int output(Simulation* simulation)
     teff = simulation->tnow + dt/8;
 
     if (teff >= simulation->tout)
-    {
-        if(save_values_bin(simulation) == STATUS_ERROR)
+    {   
+        //Increment filenumber by one
+        (*filenumber) += 1;
+
+        //Save
+        if(save_values_bin(simulation, *filenumber) == STATUS_ERROR)
             return STATUS_ERROR;
 
         //Schedule next output
@@ -211,7 +215,7 @@ int simulation_allocate_memory(Simulation* simulation)
     return STATUS_OK;
 }
 
-int save_values_csv(Simulation* simulation)
+int save_values_csv(Simulation* simulation, int filenumber)
 /**
  * This funtion will print to the file f the current positions of all the bodies in the simulation as a csv
  * The output will be stored in "/dev/shm/data/{filename}.csv" where filename is the current number of outputs done
@@ -219,6 +223,7 @@ int save_values_csv(Simulation* simulation)
  * the data is stored as N lines each line contains the x,y,z position for one body
  * 
  * @param simulation (Simulation*):  a pointer to the simulation being stored
+ * @param filenumber (int): Number of the file to be created
  * @return status (int): STATUS_ERROR (0) in case of error STATUS_OK(1) in case everything when ok
  */
 {   
@@ -229,7 +234,7 @@ int save_values_csv(Simulation* simulation)
         return STATUS_ERROR;
 
     //Construct output name
-    snprintf(filename, 256, "/dev/shm/data/%d.csv", filenumber++);
+    snprintf(filename, 256, "/dev/shm/data/%d.csv", filenumber);
 
     //Open file
     FILE* f = fopen(filename, "w");
@@ -249,7 +254,7 @@ int save_values_csv(Simulation* simulation)
     return STATUS_OK;
 }
 
-int save_values_bin(Simulation* simulation)
+int save_values_bin(Simulation* simulation, int filenumber)
 /**
  * This funtion will print to the file f the current positions of all the bodies in the simulation as a binary file
  * The output will be stored in "/dev/shm/data/{filename}.bin" where filename is the current number of outputs done
@@ -257,6 +262,7 @@ int save_values_bin(Simulation* simulation)
  * the data is stored as x,y,z binary for all of the bodies
  * 
  * @param simulation (Simulation*):  a pointer to the simulation being stored
+ * @param filenumber (int): Number of the file to be created
  * @return status (int): STATUS_ERROR (0) in case of error STATUS_OK(1) in case everything when ok
  */
 {   
@@ -268,7 +274,7 @@ int save_values_bin(Simulation* simulation)
 
 
     //Construct output name
-    snprintf(filename, 256, "/dev/shm/data/%d.bin", filenumber++);
+    snprintf(filename, 256, "/dev/shm/data/%d.bin", filenumber);
 
     //Open file
     FILE* f = fopen(filename, "wb");

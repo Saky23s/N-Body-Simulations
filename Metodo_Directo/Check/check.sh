@@ -50,9 +50,6 @@ do
         -c) 
             cuda=true
             ;;
-        -t)
-            test=true
-            ;;
         *)
             ;;
     esac
@@ -74,46 +71,7 @@ do
 
   cd ../
   ./simulation_secuencial 0.1 ../Starting_Configurations/bin_files/random.bin >/dev/null
-  cp /dev/shm/data/1.bin Check/secuential.bin >/dev/null
-  
-  if [ $test == true ]; then
-    #Delete old data
-    if [ -d /dev/shm/data ]; then
-      rm -f /dev/shm/data/*.csv 2>/dev/null
-      rm -f /dev/shm/data/*.bin 2>/dev/null
-    else
-      mkdir /dev/shm/data 2>/dev/null
-    fi
-
-    ./simulation_secuencial_new 0.1 ../Starting_Configurations/bin_files/random.bin >/dev/null
-
-    cp /dev/shm/data/1.bin Check/test.bin >/dev/null
-
-    ./simulation_OpenMP_new 0.1 ../Starting_Configurations/bin_files/random.bin >/dev/null
-
-    cp /dev/shm/data/1.bin Check/testo.bin >/dev/null
-
-    cd Check/
-    ./compare $1 secuential.bin test.bin >/dev/null
-
-    if [ $? == 1 ];
-    then
-      echo -e "${CLEAR_LINE}${GREEN} PASSED ${NC} $n bodies"
-    else
-      echo -e "${CLEAR_LINE}${RED} FAILED ${NC} $n bodies"
-      exit 0
-    fi
-
-    ./compare $1 secuential.bin testo.bin >/dev/null
-
-    if [ $? == 1 ];
-    then
-      echo -e "${CLEAR_LINE}${GREEN} PASSED ${NC} $n bodies"
-    else
-      echo -e "${CLEAR_LINE}${RED} FAILED ${NC} $n bodies"
-      exit 0
-    fi
-  fi
+  cp /dev/shm/data/2.bin Check/secuential.bin >/dev/null
 
   if [ $cuda == true -a $Open_MP == true ]; then
     #Delete old data
@@ -126,11 +84,11 @@ do
 
     ./simulation_OpenMP 0.1 ../Starting_Configurations/bin_files/random.bin >/dev/null
 
-    cp /dev/shm/data/1.bin Check/OpenMP.bin >/dev/null
+    cp /dev/shm/data/2.bin Check/OpenMP.bin >/dev/null
 
     ./simulation_cuda 0.1 ../Starting_Configurations/bin_files/random.bin >/dev/null
 
-    cp /dev/shm/data/1.bin Check/cuda.bin >/dev/null
+    cp /dev/shm/data/2.bin Check/cuda.bin >/dev/null
 
     cd Check/
     ./compare $1 secuential.bin cuda.bin >/dev/null
@@ -159,9 +117,9 @@ do
       mkdir /dev/shm/data 2>/dev/null
     fi
 
-    ./simulation_OpenMP 1 ../Starting_Configurations/bin_files/random.bin >/dev/null
+    ./simulation_OpenMP 0.1 ../Starting_Configurations/bin_files/random.bin >/dev/null
 
-    cp /dev/shm/data/1.bin Check/OpenMP.bin >/dev/null
+    cp /dev/shm/data/2.bin Check/OpenMP.bin >/dev/null
 
     cd Check/
     ./compare $1 secuential.bin OpenMP.bin >/dev/null
@@ -182,9 +140,9 @@ do
       mkdir /dev/shm/data 2>/dev/null
     fi
 
-    ./simulation_cuda 1 ../Starting_Configurations/bin_files/random.bin >/dev/null
+    ./simulation_cuda 0.1 ../Starting_Configurations/bin_files/random.bin >/dev/null
 
-    cp /dev/shm/data/1.bin Check/cuda.bin >/dev/null
+    cp /dev/shm/data/2.bin Check/cuda.bin >/dev/null
 
     cd Check/
     ./compare $1 secuential.bin cuda.bin
