@@ -72,7 +72,7 @@ do
 
     if [ $? == 1 ];
     then
-      echo -e "${CLEAR_LINE}${GREEN} PASSED ${NC} $n bodies"
+      echo -e "${CLEAR_LINE}${GREEN} PASSED  ${NC} $n bodies"
     else
       echo -e "${CLEAR_LINE}${RED} FAILED ${NC} $n bodies"
       exit 0
