@@ -14,12 +14,24 @@ TYPE="secuencial";
 for arg in "$@" 
 do
     case $arg in
-        -o) 
-            
-            TYPE="OpenMP";
+        -s) 
+            TYPE="secuencial"
             ;;
-        -c) 
-            TYPE="cuda";
+        -o) 
+            TYPE="OpenMP"
+            ;;
+        -c)
+            TYPE="cuda"
+            ;;
+        
+        -v)
+            TYPE="secuencial_vectorial"
+            ;;
+        -vo)
+            TYPE="OpenMP_vectorial"
+            ;;
+        -ov)
+            TYPE="OpenMP_vectorial"
             ;;
         *)
             ;;
