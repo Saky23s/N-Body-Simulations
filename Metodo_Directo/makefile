@@ -1,5 +1,5 @@
 
-all: simulation_secuencial simulation_OpenMP simulation_cuda
+all: simulation_secuencial simulation_secuencial_vectorial simulation_OpenMP simulation_OpenMP_vectorial simulation_cuda
 
 ########################################################################
 # Secuencial:
@@ -22,6 +22,25 @@ metodo_directo_grav_secuencial.o: secuencial/src/metodo_directo_grav.c secuencia
 	$(CC) $(S_CCFLAGS) $(S_OPTFLAG) $(DIAGNOSTICS) -c secuencial/src/metodo_directo_grav.c -o metodo_directo_grav_secuencial.o
 
 ########################################################################
+# Secuencial vectorial:
+S_CCFLAGS = -DLINUX
+S_LDFLAGS =
+S_OPTFLAG = -O3 -march=native
+
+simulation_secuencial_vectorial: main.c metodo_directo_secuencial_vectorial.o metodo_directo_io_secuencial_vectorial.o metodo_directo_grav_secuencial_vectorial.o 
+	$(CC) $(S_LDFLAGS) -o simulation_secuencial_vectorial \
+	  main.c metodo_directo_secuencial_vectorial.o metodo_directo_io_secuencial_vectorial.o metodo_directo_grav_secuencial_vectorial.o -lm
+	rm *.o
+
+metodo_directo_secuencial_vectorial.o: secuencial/src/metodo_directo.c secuencial/inc/metodo_directo.h secuencial/inc/medoto_directo_defs.h
+	$(CC) $(S_CCFLAGS) $(DIAGNOSTICS) -c secuencial/src/metodo_directo.c -o metodo_directo_secuencial_vectorial.o
+
+metodo_directo_io_secuencial_vectorial.o: secuencial/src/metodo_directo_io.c secuencial/inc/metodo_directo.h secuencial/inc/medoto_directo_defs.h
+	$(CC) $(S_CCFLAGS) $(DIAGNOSTICS) -c secuencial/src/metodo_directo_io.c -o metodo_directo_io_secuencial_vectorial.o
+
+metodo_directo_grav_secuencial_vectorial.o: secuencial/src/metodo_directo_grav.c secuencial/inc/medoto_directo_defs.h
+	$(CC) $(S_CCFLAGS) $(S_OPTFLAG) $(DIAGNOSTICS) -c secuencial/src/metodo_directo_grav.c -o metodo_directo_grav_secuencial_vectorial.o
+########################################################################
 
 # OpenMP:
 O_CCFLAGS = -DLINUX
@@ -41,6 +60,27 @@ metodo_directo_io_openmp.o: openmp/src/metodo_directo_io.c openmp/inc/metodo_dir
 
 metodo_directo_grav_openmp.o: openmp/src/metodo_directo_grav.c openmp/inc/medoto_directo_defs.h
 	$(CC) $(O_CCFLAGS) $(O_OPTFLAG) $(DIAGNOSTICS) -c openmp/src/metodo_directo_grav.c -o metodo_directo_grav_openmp.o
+
+########################################################################
+
+# OpenMP vectorial:
+O_CCFLAGS = -DLINUX
+O_LDFLAGS = -lm -pthread
+O_OPTFLAG = -O3 -march=native
+
+simulation_OpenMP_vectorial: main.c metodo_directo_openmp_vectorial.o metodo_directo_io_openmp_vectorial.o metodo_directo_grav_openmp_vectorial.o 
+	$(CC) $(O_LDFLAGS) -o simulation_OpenMP_vectorial \
+	  main.c metodo_directo_openmp_vectorial.o metodo_directo_io_openmp_vectorial.o metodo_directo_grav_openmp_vectorial.o -lm
+	rm *.o
+
+metodo_directo_openmp_vectorial.o: openmp/src/metodo_directo.c openmp/inc/metodo_directo.h openmp/inc/medoto_directo_defs.h
+	$(CC) $(O_CCFLAGS) $(DIAGNOSTICS) -c openmp/src/metodo_directo.c -o metodo_directo_openmp_vectorial.o
+
+metodo_directo_io_openmp_vectorial.o: openmp/src/metodo_directo_io.c openmp/inc/metodo_directo.h openmp/inc/medoto_directo_defs.h
+	$(CC) $(O_CCFLAGS) $(DIAGNOSTICS) -c openmp/src/metodo_directo_io.c -o metodo_directo_io_openmp_vectorial.o
+
+metodo_directo_grav_openmp_vectorial.o: openmp/src/metodo_directo_grav.c openmp/inc/medoto_directo_defs.h
+	$(CC) $(O_CCFLAGS) $(O_OPTFLAG) $(DIAGNOSTICS) -c openmp/src/metodo_directo_grav.c -o metodo_directo_grav_openmp_vectorial.o
 
 ########################################################################
 
@@ -71,6 +111,6 @@ clean:
 	rm simulation_secuencial 2>/dev/null
 	rm simulation_OpenMP 2>/dev/null
 	rm simulation_cuda 2>/dev/null
-	rm *.o
+	rm simulation_secuencial_vectorial 2>/dev/null
 
 	
