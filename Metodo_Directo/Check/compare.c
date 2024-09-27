@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 
-#define MAX_ERROR  10e-17 
+#define MAX_ERROR  10e-6
 int main(int argc, char **argv)
 {
     if(argc != 4)

@@ -356,10 +356,11 @@ int calculate_kernel_size(Simulation* simulation)
  * A simple funtion to calculate the most efficient kernel sizes for this simulation depending of the size of N
  * @param simulation (Simulation*): a pointer to the simulation
  */
-{
+{   
+
     if(simulation == NULL)
         return STATUS_ERROR;
-    
+    /*
     unsigned int x = 32;
     unsigned int y = 32;
 
@@ -371,10 +372,10 @@ int calculate_kernel_size(Simulation* simulation)
             simulation->gridDims = { (unsigned int) ceil(simulation->n/(double) x), (unsigned int) ceil( simulation->n/(double) y), 1 }; 
             return STATUS_OK;
         }
-    }
+    }*/
 
-    x = 1;
-    y = 1024;
+    unsigned int x = 1;
+    unsigned int y = 1024;
 
     simulation->threadBlockDims = {x, y, 1} ; //1024 threads per block
     simulation->gridDims = { (unsigned int) ceil(simulation->n/(double) x), (unsigned int) ceil( simulation->n/(double) y), 1 }; 
