@@ -32,6 +32,8 @@ int calculate_acceleration(Simulation* simulation)
         simulation->acceleration[i] = 0.0;
     }
 
+    real softening2 = softening * softening;
+    
     //For all of the bodies
     for(int i = 0; i < simulation->n; i++)
     {
@@ -48,11 +50,12 @@ int calculate_acceleration(Simulation* simulation)
             real dy = simulation->positions[joffset+1] - simulation->positions[ioffset+1]; //ry body 2 - ry body 1
             real dz = simulation->positions[joffset+2] - simulation->positions[ioffset+2]; //rz body 2 - rz body 1
             
-            real r = pow(dx, 2) + pow(dy, 2) + pow(dz, 2) + pow(softening, 2); //distance with some softening
+            real r = 1.0 / sqrt(dx * dx + dy * dy + dz * dz + softening2); //distance magnitud with some softening
+            r = (G * simulation->masses[j] * r * r * r ); //Acceleration formula
 
-            simulation->acceleration[ioffset] += (G * simulation->masses[j] * dx) / pow(r, 1.5); //Acceleration formula for x
-            simulation->acceleration[ioffset+1] += (G * simulation->masses[j] * dy) / pow(r, 1.5); //Acceleration formula for y
-            simulation->acceleration[ioffset+2] += (G * simulation->masses[j] * dz) / pow(r, 1.5); //Acceleration formula for z
+            simulation->acceleration[ioffset] += r * dx; //Acceleration formula for x
+            simulation->acceleration[ioffset+1] += r * dy; //Acceleration formula for y
+            simulation->acceleration[ioffset+2] += r * dz; //Acceleration formula for z
         }
     }
 
