@@ -151,7 +151,7 @@ do
   #Testing for vectorial
   if [ $vectorial_openmp == true ]; then 
 
-    echo -ne "${YELLOW} TESTING FOR OPENMP V FOR $n BODIES ${NC}\r"
+    echo -ne "${YELLOW} TESTING FOR  OPENMP V FOR $n BODIES ${NC}\r"
 
     #Delete old data
     if [ -d /dev/shm/data ]; then
@@ -170,9 +170,9 @@ do
 
     if [ $? == 1 ];
     then
-      echo -e "${CLEAR_LINE}${GREEN} PASSED FOR OPENMP V FOR $n BODIES ${NC}"
+      echo -e "${CLEAR_LINE}${GREEN} PASSED FOR  OPENMP V FOR $n BODIES ${NC}"
     else
-      echo -e "${CLEAR_LINE}${RED} FAILED FOR OPENMP V FOR $n BODIES ${NC}"
+      echo -e "${CLEAR_LINE}${RED} FAILED FOR  OPENMP V FOR $n BODIES ${NC}"
       exit 0
     fi
     
