@@ -38,24 +38,22 @@ int calculate_acceleration(Simulation* simulation)
 
     //For all of the bodies, in parallel
     #pragma omp parallel for collapse(2)
-    for(int i = 0; i < simulation->n; i++)
+    for(int ioffset = 0; ioffset < simulation->n*3; ioffset+=3)
     {
-        int ioffset = i * 3;
     
         //For all other bodies
-        for(int j = 0; j < simulation->n; j++)
+        for(int joffset = 0; joffset < simulation->n*3; joffset+=3)
         {   
             //i and j cant be the same body
-            if(i==j)
+            if(ioffset==joffset)
                 continue;
 
-            int joffset = j * 3;
             real dx = simulation->positions[joffset] - simulation->positions[ioffset]; //rx body 2 - rx body 1
             real dy = simulation->positions[joffset+1] - simulation->positions[ioffset+1]; //ry body 2 - ry body 1
             real dz = simulation->positions[joffset+2] - simulation->positions[ioffset+2]; //rz body 2 - rz body 1
             
             real r = 1.0 / sqrt(dx * dx + dy * dy + dz * dz + softening2); //distance magnitud with some softening
-            r = (G * simulation->masses[j] * r * r * r ); //Acceleration formula
+            r = (G * simulation->masses[joffset/3] * r * r * r ); //Acceleration formula
 
             simulation->acceleration[ioffset] += r * dx; //Acceleration formula for x
             simulation->acceleration[ioffset+1] += r * dy; //Acceleration formula for y
