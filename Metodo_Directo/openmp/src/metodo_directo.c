@@ -96,9 +96,17 @@ double run_simulation(double T, char* filename)
             return STATUS_ERROR;
         }
 
+        #ifndef DIAGNOSTICS
         //Print fancy progress 
         printf("\rIntegrating: step = %d / %d", nstep, steps);
 	    fflush(stdout);
+        #endif
+
+        #ifdef DIAGNOSTICS
+        //Print progress with energy, no fancy print
+        printf("Integrating: step = %d / %d (Energy = %lf)\n", nstep, steps, fabs(checkEnergy(simulation)));
+	    fflush(stdout);
+        #endif
     }
     
     //Calculate how long the simulation took

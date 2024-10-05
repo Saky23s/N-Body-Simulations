@@ -38,11 +38,6 @@ int output(Simulation* simulation, int* filenumber)
 {
     real teff;
 
-    #ifdef DIAGNOSTICS
-        if(print_diagnostics() == STATUS_ERROR)
-            return STATUS_ERROR;
-    #endif
-
     //Anticipate slightly...
     teff = simulation->tnow + dt/8;
 
