@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "../Metodo_Directo/inc/simulation.h"
+#include "../Metodo_Directo/simulation.h"
 
 #define M_PI acos(-1.0)
 
