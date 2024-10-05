@@ -2,7 +2,7 @@
 all: simulation_secuencial simulation_secuencial_vectorial simulation_OpenMP simulation_OpenMP_vectorial simulation_cuda
 
 #UNCOMMENT THIS LINE FOR DIAGNOSTICS
-DIAGNOSTICS = -DDIAGNOSTICS
+#DIAGNOSTICS = -DDIAGNOSTICS
 
 ########################################################################
 # Secuencial:
