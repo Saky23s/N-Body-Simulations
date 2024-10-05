@@ -110,7 +110,7 @@ typedef struct
 //density smoothing parameter
 #define softening 0.025
 //Step size
-#define dt 0.01
+#define dt 0.1
 //Time until save
 #define speed 0.1
 //Density smoothing length

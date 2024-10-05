@@ -59,6 +59,8 @@ double run_simulation(double T, char* filename)
     if(load_bodies(filename) == STATUS_ERROR)
         return STATUS_ERROR;                        
 
+    int filenumber = 0;
+
     //Internal variables to measure time 
     struct timeval t_start, t_end;
     gettimeofday ( &t_start, NULL );
@@ -71,7 +73,7 @@ double run_simulation(double T, char* filename)
     }
 
     //And save it
-    if(output() == STATUS_ERROR)
+    if(output(&filenumber) == STATUS_ERROR)
     {
         freetree(bodytab);
         return STATUS_ERROR;
@@ -88,7 +90,7 @@ double run_simulation(double T, char* filename)
         }
 
         //Output results
-        if(output() == STATUS_ERROR)
+        if(output(&filenumber) == STATUS_ERROR)
         {
             freetree(bodytab);
             return STATUS_ERROR;

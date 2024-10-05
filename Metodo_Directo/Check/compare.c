@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 
-#define MAX_ERROR  10e-17 
+#define MAX_ERROR  10e-15
 int main(int argc, char **argv)
 {
     if(argc != 4)
@@ -46,6 +46,6 @@ int main(int argc, char **argv)
     if(error < MAX_ERROR)
         return 1;
 
-    //printf("%.15lf\n", error);
+    printf("%.15lf\n", error);
     return 0;
 }

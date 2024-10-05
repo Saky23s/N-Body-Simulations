@@ -21,8 +21,14 @@ do
             TYPE="cuda"
             ;;
         
-        -h)
-            TYPE="hermite"
+        -v)
+            TYPE="secuencial_vectorial"
+            ;;
+        -vo)
+            TYPE="OpenMP_vectorial"
+            ;;
+        -ov)
+            TYPE="OpenMP_vectorial"
             ;;
         -w)
             WINDOW=true

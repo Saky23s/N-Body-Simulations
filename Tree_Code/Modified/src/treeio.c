@@ -46,9 +46,8 @@ local matrix peten;                             /* potential energy tensor  */
 local vector cmpos;                             /* center of mass position  */
 local vector cmvel;                             /* center of mass velocity  */
 local vector amvec;                             /* angular momentum vector  */
-local int filenumber = 0;
 
-int output(void)
+int output(int* filenumber)
 /**
  * 
  * This funtion will control the outputs.
@@ -74,8 +73,11 @@ int output(void)
 
     if (teff >= tout)
     {
-        if(save_values_bin(filenumber++) == STATUS_ERROR)
+        if(save_values_bin(*filenumber) == STATUS_ERROR)
             return STATUS_ERROR;
+
+        //Increment filenumber
+        *filenumber = *filenumber + 1;
 
         //Schedule next output
         tout += speed;

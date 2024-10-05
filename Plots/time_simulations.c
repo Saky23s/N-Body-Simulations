@@ -2,9 +2,11 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "../Metodo_Directo/inc/simulation.h"
+#include "../Metodo_Directo/simulation.h"
 
 double random_num(double min, double max);
+
+
 
 int main(int argc, char **argv)
 /**
@@ -65,16 +67,8 @@ int main(int argc, char **argv)
         }
         fclose(position_file);
         
-        //Create a simulation for that file
-        Simulation *simulation = load_bodies("../Starting_Configurations/bin_files/random.bin");    
-        if(simulation == NULL)
-        {   
-            printf("Error while loading simulation\n");
-            return STATUS_ERROR;
-        }
-        
         //Run simulation for 100 seconds
-        double t = run_simulation(simulation, 100.0);
+        double t = run_simulation(100.0, "../Starting_Configurations/bin_files/random.bin");
         
         FILE* output_file = fopen("times.log", "a");
         if(output_file == NULL)
@@ -84,7 +78,6 @@ int main(int argc, char **argv)
         fprintf(output_file, "%ld %lf\n", n, t);
 
         //Free memory
-        free(simulation);
         fclose(output_file);
     }
     

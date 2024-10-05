@@ -5,7 +5,7 @@
 
 using namespace std;
 
-#include "../Metodo_Directo/inc/simulation.h"
+#include "../Metodo_Directo/simulation.h"
 
 double random_num(double min, double max);
 
@@ -72,16 +72,8 @@ int main(int argc, char **argv)
         }
         fclose(position_file);
         
-        // Create a simulation for that file
-        Simulation *simulation = load_bodies(pos_f_path);
-        if(simulation == nullptr) 
-        {
-            std::cout << "Error while loading simulation\n";
-            return STATUS_ERROR;
-        }
-        
         // Run simulation for 100 seconds
-        double t = run_simulation(simulation, 100.0);
+        double t = run_simulation(100.0, pos_f_path);
         
         output_file.open("times.log",  ios::out | ios::app );
         if(!output_file)
@@ -92,9 +84,6 @@ int main(int argc, char **argv)
         // Store time
         output_file << n << " " << t << "\n";
         output_file.close();
-
-        // Free memory
-        free_simulation(simulation);
         
     }
     return STATUS_OK;

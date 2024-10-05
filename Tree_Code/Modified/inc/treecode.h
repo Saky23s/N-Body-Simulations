@@ -45,7 +45,7 @@ global bodyptr bodytab;
 int load_bodies(char* filename);
 
 //Perform output operation
-int output(void);
+int output(int* filenumber);
 
 #ifdef DIAGNOSTICS
 //Report on force calculation

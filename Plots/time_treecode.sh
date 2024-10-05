@@ -19,6 +19,13 @@ for (( n=$1; n<=$2; n+=$3 ))
 do 
     printf $n >> times.log
 
+    if [ -d /dev/shm/data ]; then
+      rm -f /dev/shm/data/*.csv >/dev/null
+      rm -f /dev/shm/data/*.bin >/dev/null
+    else
+      mkdir /dev/shm/data >/dev/null
+    fi
+
     cd ../Starting_Configurations
     make clean *>/dev/null
     make all >/dev/null

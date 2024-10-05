@@ -25,7 +25,7 @@ string defv[] = {               ";Hierarchical N-body code "
 #if defined(USEFREQ)
     "freq=32.0",                ";Leapfrog integration frequency",
 #else
-    "dtime=0.01",               ";Leapfrog integration timestep",
+    "dtime=0.1",               ";Leapfrog integration timestep",
 #endif
     "eps=0.025",                ";Density smoothing length",
 #if !defined(QUICKSCAN)
