@@ -12,6 +12,7 @@ if [ "$#" -lt 3 ]; then
     exit 0
 fi
 
+echo -ne "${YELLOW} MAKING NEW EXECUTABLES ${NC}\r"
 
 #Generate fresh executables
 make clean *>/dev/null
