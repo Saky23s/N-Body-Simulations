@@ -16,6 +16,10 @@
 int simulation_allocate_memory(Simulation* simulation);
 int leapfrog(Simulation* simulation);
 
+//cuda kernels
+__global__ void leapfrog_step(int n, realptr d_velocity, realptr d_acceleration, realptr d_position, real half_dt, real d_dt);
+__global__ void leapfrog_halfstep(int n, realptr d_velocity, realptr d_acceleration, real half_dt);
+
 #ifdef DIAGNOSTICS
 real checkEnergy(Simulation* simulation);
 #endif
@@ -144,38 +148,54 @@ int leapfrog(Simulation* simulation)
     if(calculate_acceleration(simulation) == STATUS_ERROR)
         return STATUS_ERROR;
 
-    for(int i = 0; i < simulation->n; i++)
-    {
-        int ioffset = i * 3;
-        //Half step velocity
-        //  vn+1/2 = vn + 1/2dt * a(rn)
-        simulation->velocity[ioffset] = simulation->velocity[ioffset] + simulation->acceleration[ioffset] * simulation->half_dt;
-        simulation->velocity[ioffset+1] = simulation->velocity[ioffset+1] + simulation->acceleration[ioffset+1] * simulation->half_dt;
-        simulation->velocity[ioffset+2] = simulation->velocity[ioffset+2] + simulation->acceleration[ioffset+2] * simulation->half_dt;
-
-        //Use that velocity to full step the position
-        //  rn+1 = rn + dt*vn+1/2
-        simulation->positions[ioffset] = simulation->positions[ioffset] + simulation->velocity[ioffset] * dt;
-        simulation->positions[ioffset+1] = simulation->positions[ioffset+1] + simulation->velocity[ioffset+1] * dt;
-        simulation->positions[ioffset+2] = simulation->positions[ioffset+2] + simulation->velocity[ioffset+2] * dt;
-    }
+    //Half step velocity and full step positions
+    leapfrog_step<<<simulation->gridDims, simulation->threadBlockDims>>>(simulation->n, simulation->d_velocity, simulation->d_acceleration, simulation->d_position, simulation->half_dt, dt);
 
     //Calculate the accelerations with half step velocity and full step position
     if(calculate_acceleration(simulation) == STATUS_ERROR)
         return STATUS_ERROR;
 
-    for(int i = 0; i < simulation->n; i++)
-    {
-        int ioffset = i * 3;
-        
-        //Half step the velocity again (making a full step)
-        //  vn+1 = vn+1/2 + 1/2dt * a(rn+1)
-        simulation->velocity[ioffset] = simulation->velocity[ioffset] + simulation->acceleration[ioffset] * simulation->half_dt;
-        simulation->velocity[ioffset+1] = simulation->velocity[ioffset+1] + simulation->acceleration[ioffset+1] * simulation->half_dt;
-        simulation->velocity[ioffset+2] = simulation->velocity[ioffset+2] + simulation->acceleration[ioffset+2] * simulation->half_dt;
-    }
+    leapfrog_halfstep<<<simulation->gridDims, simulation->threadBlockDims>>>(simulation->n, simulation->d_velocity, simulation->d_acceleration, simulation->half_dt);
 
     return STATUS_OK;
+}
+
+__global__ void leapfrog_halfstep(int n, realptr d_velocity, realptr d_acceleration, real half_dt)
+{   
+    int i = threadIdx.y + blockIdx.y * blockDim.y;
+
+    if(i < n)
+    {
+        int ioffset = i * 3;
+        //Half step velocity
+        //  vn+1/2 = vn + 1/2dt * a(rn)
+        d_velocity[ioffset] = d_velocity[ioffset] + d_acceleration[ioffset] * half_dt;
+        d_velocity[ioffset+1] = d_velocity[ioffset+1] + d_acceleration[ioffset+1] * half_dt;
+        d_velocity[ioffset+2] = d_velocity[ioffset+2] + d_acceleration[ioffset+2] * half_dt;
+    
+    }
+}
+
+__global__ void leapfrog_step(int n, realptr d_velocity, realptr d_acceleration, realptr d_position, real half_dt, real d_dt)
+{   
+    int i = threadIdx.y + blockIdx.y * blockDim.y;
+
+    if(i < n)
+    {
+        int ioffset = i * 3;
+        //Half step velocity
+        //  vn+1/2 = vn + 1/2dt * a(rn)
+        d_velocity[ioffset] = d_velocity[ioffset] + d_acceleration[ioffset] * half_dt;
+        d_velocity[ioffset+1] = d_velocity[ioffset+1] + d_acceleration[ioffset+1] * half_dt;
+        d_velocity[ioffset+2] = d_velocity[ioffset+2] + d_acceleration[ioffset+2] * half_dt;
+
+        //Use that velocity to full step the position
+        //  rn+1 = rn + dt*vn+1/2
+        d_position[ioffset] = d_position[ioffset] + d_velocity[ioffset] * d_dt;
+        d_position[ioffset+1] = d_position[ioffset+1] + d_velocity[ioffset+1] * d_dt;
+        d_position[ioffset+2] = d_position[ioffset+2] + d_velocity[ioffset+2] * d_dt;
+        
+    }
 }
 
 #ifdef DIAGNOSTICS

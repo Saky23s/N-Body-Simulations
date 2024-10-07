@@ -63,6 +63,9 @@ int output(Simulation* simulation, int* filenumber)
         //Increment filenumber by one
         (*filenumber) += 1;
 
+        //Pass the positions back from gpu
+        cudaMemcpy( simulation->positions, simulation->d_position, 3 * simulation->n * sizeof(simulation->d_position[0]), cudaMemcpyDeviceToHost);
+
         //Save
         if(save_values_bin(simulation, *filenumber) == STATUS_ERROR)
             return STATUS_ERROR;
@@ -137,7 +140,7 @@ Simulation* load_bodies(char* filepath)
             if(i == 0)
             {   
                 //skip header line
-                fscanf(f, "%*[^\n]\n");
+                fscanf(f, "%*[^\n]\n", NULL);
                 continue;
             }
 
@@ -210,6 +213,8 @@ Simulation* load_bodies(char* filepath)
 
     //Copy masses to cuda memory
     cudaMemcpy( simulation->d_masses,  simulation->masses, simulation->n * sizeof(simulation->masses[0]),cudaMemcpyHostToDevice);
+    cudaMemcpy( simulation->d_position,  simulation->positions, simulation->n * 3 * sizeof(simulation->positions[0]),cudaMemcpyHostToDevice);
+    cudaMemcpy( simulation->d_velocity,  simulation->velocity, simulation->n * 3 * sizeof(simulation->velocity[0]),cudaMemcpyHostToDevice);
 
     //Set time to 0
     simulation-> tnow = 0.0;
@@ -253,7 +258,13 @@ int simulation_allocate_memory(Simulation* simulation)
     status = cudaMalloc(&simulation->d_position, simulation->n * 3 * sizeof(simulation->d_position[0]));
     cudaErrorCheck(status);
 
-    status = cudaMalloc(&simulation->d_k_velocity, simulation->n  * simulation->gridDims.y * 3 * sizeof(simulation->d_k_velocity[0]));
+    status = cudaMalloc(&simulation->d_velocity, simulation->n * 3 * sizeof(simulation->d_velocity[0]));
+    cudaErrorCheck(status);
+
+    status = cudaMalloc(&simulation->d_acceleration, simulation->n * 3 * sizeof(simulation->d_acceleration[0]));
+    cudaErrorCheck(status);
+
+    status = cudaMalloc(&simulation->d_block_holder, simulation->n  * simulation->gridDims.y * 3 * sizeof(simulation->d_block_holder[0]));
     cudaErrorCheck(status);
 
     return STATUS_OK;
@@ -355,25 +366,12 @@ int calculate_kernel_size(Simulation* simulation)
 
     if(simulation == NULL)
         return STATUS_ERROR;
-    /*
-    unsigned int x = 32;
-    unsigned int y = 32;
-
-    for(; y <= 1024; x/=2, y*=2)
-    {
-        if(simulation->n < y)
-        {
-            simulation->threadBlockDims = {x, y, 1} ; //1024 threads per block
-            simulation->gridDims = { (unsigned int) ceil(simulation->n/(double) x), (unsigned int) ceil( simulation->n/(double) y), 1 }; 
-            return STATUS_OK;
-        }
-    }*/
 
     unsigned int x = 1;
     unsigned int y = 1024;
 
     simulation->threadBlockDims = {x, y, 1} ; //1024 threads per block
-    simulation->gridDims = { (unsigned int) ceil(simulation->n/(double) x), (unsigned int) ceil( simulation->n/(double) y), 1 }; 
+    simulation->gridDims = { 1, (unsigned int) ceil( simulation->n/(double) y), 1 }; 
 
     return STATUS_OK;
 }
@@ -394,7 +392,7 @@ void free_simulation(Simulation* simulation)
 
     cudaFree(simulation->d_masses);
     cudaFree(simulation->d_position);
-    cudaFree(simulation->d_k_velocity);
+    cudaFree(simulation->d_block_holder);
 
     //Frees the simulation object itself
     free(simulation);

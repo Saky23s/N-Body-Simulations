@@ -97,15 +97,15 @@ LDFLAGS_CUDA = -lm
 OPTFLAG_CUDA = -O3 
 
 simulation_cuda: main.cpp metodo_directo_cuda.o metodo_directo_io_cuda.o metodo_directo_grav_cuda.o 
-	$(CUDA_CC) $(CUDA_CCFLAGS) $(LDFLAGS_CUDA) -o simulation_cuda \
+	$(CUDA_CC) $(CUDA_CCFLAGS) $(OPTFLAG_CUDA) $(LDFLAGS_CUDA) -o simulation_cuda \
 	  main.cpp metodo_directo_cuda.o metodo_directo_io_cuda.o metodo_directo_grav_cuda.o -lm
 	rm *.o
 
 metodo_directo_cuda.o: cuda/src/metodo_directo.cu cuda/inc/metodo_directo.h cuda/inc/medoto_directo_defs.h
-	$(CUDA_CC) $(CUDA_CCFLAGS) $(DIAGNOSTICS) -c cuda/src/metodo_directo.cu -o metodo_directo_cuda.o
+	$(CUDA_CC) $(CUDA_CCFLAGS) $(OPTFLAG_CUDA) $(DIAGNOSTICS) -c cuda/src/metodo_directo.cu -o metodo_directo_cuda.o
 
 metodo_directo_io_cuda.o: cuda/src/metodo_directo_io.cu cuda/inc/metodo_directo.h cuda/inc/medoto_directo_defs.h
-	$(CUDA_CC) $(CUDA_CCFLAGS) $(DIAGNOSTICS) -c cuda/src/metodo_directo_io.cu -o metodo_directo_io_cuda.o
+	$(CUDA_CC) $(CUDA_CCFLAGS) $(OPTFLAG_CUDA) $(DIAGNOSTICS) -c cuda/src/metodo_directo_io.cu -o metodo_directo_io_cuda.o
 
 metodo_directo_grav_cuda.o: cuda/src/metodo_directo_grav.cu cuda/inc/medoto_directo_defs.h
 	$(CUDA_CC) $(CUDA_CCFLAGS) $(OPTFLAG_CUDA) $(DIAGNOSTICS) -c cuda/src/metodo_directo_grav.cu -o metodo_directo_grav_cuda.o

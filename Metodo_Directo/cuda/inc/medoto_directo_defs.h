@@ -35,7 +35,9 @@ typedef struct _Simulation
     //Cuda variables
     realptr d_masses;
     realptr d_position;
-    realptr d_k_velocity;
+    realptr d_block_holder;
+    realptr d_velocity;
+    realptr d_acceleration;
     dim3 threadBlockDims;
     dim3 gridDims;
 
