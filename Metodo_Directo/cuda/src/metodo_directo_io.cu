@@ -65,9 +65,12 @@ int output(Simulation* simulation, int* filenumber)
 
         //Pass the positions back from gpu
         cudaMemcpy( simulation->positions, simulation->d_position, 3 * simulation->n * sizeof(simulation->d_position[0]), cudaMemcpyDeviceToHost);
-
+        
         //Save
         if(save_values_bin(simulation, *filenumber) == STATUS_ERROR)
+            return STATUS_ERROR;
+
+        if(save_values_csv(simulation, *filenumber) == STATUS_ERROR)
             return STATUS_ERROR;
 
         //Schedule next output
@@ -371,7 +374,7 @@ int calculate_kernel_size(Simulation* simulation)
     unsigned int y = 1024;
 
     simulation->threadBlockDims = {x, y, 1} ; //1024 threads per block
-    simulation->gridDims = { 1, (unsigned int) ceil( simulation->n/(double) y), 1 }; 
+    simulation->gridDims = { (unsigned int) ceil( simulation->n/(double) x), (unsigned int) ceil( simulation->n/(double) y), 1 }; 
 
     return STATUS_OK;
 }
@@ -393,6 +396,8 @@ void free_simulation(Simulation* simulation)
     cudaFree(simulation->d_masses);
     cudaFree(simulation->d_position);
     cudaFree(simulation->d_block_holder);
+    cudaFree(simulation->d_acceleration);
+    cudaFree(simulation->d_velocity);
 
     //Frees the simulation object itself
     free(simulation);

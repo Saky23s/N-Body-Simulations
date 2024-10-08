@@ -31,6 +31,8 @@ __device__ void full_block_reduction (realptr d_block_holder, realptr sdata, int
 
 __global__ void finish_block_reduce (realptr d_acceleration, realptr d_block_holder, int n, unsigned int number_of_blocks_j);
 
+__device__ void shitty_reduce(int n, int number_of_blocks_j, realptr d_block_holder, realptr sdata);
+
 #define cudaErrorCheck(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 
 /**
@@ -93,9 +95,10 @@ int calculate_acceleration(Simulation* simulation)
     
     cudaError_t status = cudaGetLastError();
     cudaErrorCheck(status);
+    
 
     //Maybe here I should check how many reductions should I do, for now until I can handle a million bodies two is enough
-    finish_block_reduce<<<simulation->gridDims,simulation->threadBlockDims>>>(simulation->d_acceleration, simulation->d_block_holder, simulation->n, simulation->gridDims.y);
+    finish_block_reduce<<<1,1024>>>(simulation->d_acceleration, simulation->d_block_holder, simulation->n, simulation->gridDims.y);
     
     status = cudaGetLastError();
     cudaErrorCheck(status);
@@ -123,6 +126,7 @@ __global__ void calculate_acceleration_values_block_reduce(realptr d_masses, rea
     //Reduce all values of this block
     full_block_reduction<blockSize>(d_block_holder, sdata, n, number_of_blocks_j);
 }
+
 
 __device__ void calculate_acceleration_values(realptr d_masses, realptr d_position, realptr sdata, int n)
 /**
@@ -164,9 +168,9 @@ __device__ void calculate_acceleration_values(realptr d_masses, realptr d_positi
     //Fill with 0 the remaining values in the array with 0
     else
     {  
-        S(blockDim.x, blockDim.y, 0, x, y, sdata) = 0.0;    //x
-        S(blockDim.x, blockDim.y, 1, x, y, sdata) = 0.0;    //y
-        S(blockDim.x, blockDim.y, 2, x, y, sdata) = 0.0;    //z
+        S(blockDim.x, blockDim.y, 0, x, y, sdata) = (real) 0.0;    //x
+        S(blockDim.x, blockDim.y, 1, x, y, sdata) = (real) 0.0;    //y
+        S(blockDim.x, blockDim.y, 2, x, y, sdata) = (real) 0.0;    //z
     }
     
 }
@@ -304,11 +308,12 @@ __device__ void warpReduce(volatile realptr sdata, int x, int y)
 
 __global__ void finish_block_reduce (realptr d_acceleration, realptr d_block_holder, int n, unsigned int number_of_blocks_j)
 {   
-    //Aggregate results
-    int i = threadIdx.y + blockIdx.y * blockDim.y;
-    int ioffset = i * 3;
-    if(i < n)
+
+    int index = threadIdx.x;
+    int stride = blockDim.x;
+    for (int i = index; i < n; i += stride)
     {
+        int ioffset = i * 3;
         for(int j = 0; j < number_of_blocks_j; j++)
         {
             d_acceleration[ioffset] += S(n,number_of_blocks_j, 0, i, j, d_block_holder);
@@ -316,5 +321,4 @@ __global__ void finish_block_reduce (realptr d_acceleration, realptr d_block_hol
             d_acceleration[ioffset + 2] += S(n,number_of_blocks_j, 2, i, j, d_block_holder);
         } 
     }
-            
 }
