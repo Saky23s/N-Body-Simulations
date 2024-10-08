@@ -37,7 +37,7 @@ int calculate_acceleration(Simulation* simulation)
     real softening2 = softening * softening;
 
     //For all of the bodies, in parallel
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for
     for(int ioffset = 0; ioffset < simulation->n*3; ioffset+=3)
     {
     
