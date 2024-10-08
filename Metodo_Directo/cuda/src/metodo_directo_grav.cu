@@ -18,20 +18,18 @@
 
 
 //Cuda kernels
-__device__ void calculate_acceleration_values(realptr d_masses, realptr d_position, realptr sdata, int n);
+__device__ void calculate_acceleration_values(realptr d_masses, realptr px, realptr py, realptr pz, realptr sdata, int n);
 
 template <unsigned int blockSize>
 __device__ void warpReduce(volatile realptr sdata, int x, int y);
 
 template <unsigned int blockSize>
-__global__ void calculate_acceleration_values_block_reduce(realptr d_masses, realptr d_position, realptr d_block_holder, int n, unsigned int number_of_blocks_j);
+__global__ void calculate_acceleration_values_block_reduce(realptr d_masses, realptr x, realptr y, realptr z, realptr d_block_holder, int n, unsigned int number_of_blocks_j);
 
 template <unsigned int blockSize>
 __device__ void full_block_reduction (realptr d_block_holder, realptr sdata, int n, unsigned int number_of_blocks_j);
 
-__global__ void finish_block_reduce (realptr d_acceleration, realptr d_block_holder, int n, unsigned int number_of_blocks_j);
-
-__device__ void shitty_reduce(int n, int number_of_blocks_j, realptr d_block_holder, realptr sdata);
+__global__ void finish_block_reduce (realptr ax, realptr ay, realptr az, realptr d_block_holder, int n, unsigned int number_of_blocks_j);
 
 #define cudaErrorCheck(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 
@@ -67,28 +65,30 @@ int calculate_acceleration(Simulation* simulation)
 
     //Set up memory for cuda as 0 for reduccions
     cudaMemset( simulation->d_block_holder, 0.0, 3 * simulation->n  * simulation->gridDims.y * sizeof(simulation->d_block_holder[0]));
-    cudaMemset( simulation->d_acceleration, 0.0, 3 * simulation->n  * sizeof(simulation->d_acceleration[0]));
+    cudaMemset( simulation->d_ax, 0.0, simulation->n  * sizeof(simulation->d_ax[0]));
+    cudaMemset( simulation->d_ay, 0.0, simulation->n  * sizeof(simulation->d_ay[0]));
+    cudaMemset( simulation->d_az, 0.0, simulation->n  * sizeof(simulation->d_az[0]));
 
     //Call cuda with the correct block size
     switch (simulation->threadBlockDims.y)
     {   
         case 1024:
-            calculate_acceleration_values_block_reduce<1024><<<simulation->gridDims, simulation->threadBlockDims, 3 * simulation->threadBlockDims.x * simulation->threadBlockDims.y * sizeof(real)>>>(simulation->d_masses, simulation->d_position, simulation->d_block_holder ,simulation->n, simulation->gridDims.y);
+            calculate_acceleration_values_block_reduce<1024><<<simulation->gridDims, simulation->threadBlockDims, 3 * simulation->threadBlockDims.x * simulation->threadBlockDims.y * sizeof(real)>>>(simulation->d_masses, simulation->d_x, simulation->d_y, simulation->d_z, simulation->d_block_holder ,simulation->n, simulation->gridDims.y);
             break;
         case 512:
-            calculate_acceleration_values_block_reduce<512><<<simulation->gridDims, simulation->threadBlockDims, 3 * simulation->threadBlockDims.x * simulation->threadBlockDims.y * sizeof(real)>>>(simulation->d_masses, simulation->d_position, simulation->d_block_holder ,simulation->n, simulation->gridDims.y);
+            calculate_acceleration_values_block_reduce<512><<<simulation->gridDims, simulation->threadBlockDims, 3 * simulation->threadBlockDims.x * simulation->threadBlockDims.y * sizeof(real)>>>(simulation->d_masses, simulation->d_x, simulation->d_y, simulation->d_z, simulation->d_block_holder ,simulation->n, simulation->gridDims.y);
             break;
         case 256:
-            calculate_acceleration_values_block_reduce<256><<<simulation->gridDims, simulation->threadBlockDims, 3 * simulation->threadBlockDims.x * simulation->threadBlockDims.y * sizeof(real)>>>(simulation->d_masses, simulation->d_position, simulation->d_block_holder ,simulation->n, simulation->gridDims.y);
+            calculate_acceleration_values_block_reduce<256><<<simulation->gridDims, simulation->threadBlockDims, 3 * simulation->threadBlockDims.x * simulation->threadBlockDims.y * sizeof(real)>>>(simulation->d_masses, simulation->d_x, simulation->d_y, simulation->d_z, simulation->d_block_holder ,simulation->n, simulation->gridDims.y);
             break;
         case 128:
-            calculate_acceleration_values_block_reduce<128><<<simulation->gridDims, simulation->threadBlockDims, 3 * simulation->threadBlockDims.x * simulation->threadBlockDims.y * sizeof(real)>>>(simulation->d_masses, simulation->d_position, simulation->d_block_holder ,simulation->n, simulation->gridDims.y);
+            calculate_acceleration_values_block_reduce<128><<<simulation->gridDims, simulation->threadBlockDims, 3 * simulation->threadBlockDims.x * simulation->threadBlockDims.y * sizeof(real)>>>(simulation->d_masses, simulation->d_x, simulation->d_y, simulation->d_z, simulation->d_block_holder ,simulation->n, simulation->gridDims.y);
             break;
         case 64:
-            calculate_acceleration_values_block_reduce<64><<<simulation->gridDims, simulation->threadBlockDims, 3 * simulation->threadBlockDims.x * simulation->threadBlockDims.y * sizeof(real)>>>(simulation->d_masses, simulation->d_position, simulation->d_block_holder ,simulation->n, simulation->gridDims.y);
+            calculate_acceleration_values_block_reduce<64><<<simulation->gridDims, simulation->threadBlockDims, 3 * simulation->threadBlockDims.x * simulation->threadBlockDims.y * sizeof(real)>>>(simulation->d_masses, simulation->d_x, simulation->d_y, simulation->d_z, simulation->d_block_holder ,simulation->n, simulation->gridDims.y);
             break;            
         case 32:
-            calculate_acceleration_values_block_reduce<32><<<simulation->gridDims, simulation->threadBlockDims, 3 * simulation->threadBlockDims.x * simulation->threadBlockDims.y * sizeof(real)>>>(simulation->d_masses, simulation->d_position, simulation->d_block_holder ,simulation->n, simulation->gridDims.y);
+            calculate_acceleration_values_block_reduce<32><<<simulation->gridDims, simulation->threadBlockDims, 3 * simulation->threadBlockDims.x * simulation->threadBlockDims.y * sizeof(real)>>>(simulation->d_masses, simulation->d_x, simulation->d_y, simulation->d_z, simulation->d_block_holder ,simulation->n, simulation->gridDims.y);
             break;
     }
     
@@ -96,9 +96,8 @@ int calculate_acceleration(Simulation* simulation)
     cudaError_t status = cudaGetLastError();
     cudaErrorCheck(status);
     
-
     //Maybe here I should check how many reductions should I do, for now until I can handle a million bodies two is enough
-    finish_block_reduce<<<1,1024>>>(simulation->d_acceleration, simulation->d_block_holder, simulation->n, simulation->gridDims.y);
+    finish_block_reduce<<<1,1024>>>(simulation->d_ax, simulation->d_ay, simulation->d_az, simulation->d_block_holder, simulation->n, simulation->gridDims.y);
     
     status = cudaGetLastError();
     cudaErrorCheck(status);
@@ -107,7 +106,7 @@ int calculate_acceleration(Simulation* simulation)
 }
 
 template <unsigned int blockSize>
-__global__ void calculate_acceleration_values_block_reduce(realptr d_masses, realptr d_position, realptr d_block_holder, int n, unsigned int number_of_blocks_j)
+__global__ void calculate_acceleration_values_block_reduce(realptr d_masses, realptr x, realptr y, realptr z, realptr d_block_holder, int n, unsigned int number_of_blocks_j)
 /**
  * A cuda kernel that calculate the 3n**2 acceleration values and reduce them to an array of size of 3n * gridDim.y. 
  * @param d_masses (realptr): A cuda array of size n with the masses of each body
@@ -121,14 +120,14 @@ __global__ void calculate_acceleration_values_block_reduce(realptr d_masses, rea
     extern __shared__ real sdata[];
 
     //Calculate aceleration values
-    calculate_acceleration_values(d_masses, d_position, sdata, n);
+    calculate_acceleration_values(d_masses, x, y, z, sdata, n);
         
     //Reduce all values of this block
     full_block_reduction<blockSize>(d_block_holder, sdata, n, number_of_blocks_j);
 }
 
 
-__device__ void calculate_acceleration_values(realptr d_masses, realptr d_position, realptr sdata, int n)
+__device__ void calculate_acceleration_values(realptr d_masses, realptr px, realptr py, realptr pz, realptr sdata, int n)
 /**
  * Cuda kernel that calculates the acceleration values that each body suffers from every other body
  * @param d_masses (realptr): A cuda array of size n with the masses of each body
@@ -154,9 +153,9 @@ __device__ void calculate_acceleration_values(realptr d_masses, realptr d_positi
     //Calculate pull of one body by other body
     if(i < n && j < n && i != j)
     {   
-        real dx = d_position[joffset] - d_position[ioffset]; //rx body 2 - rx body 1
-        real dy = d_position[joffset+1] - d_position[ioffset+1]; //ry body 2 - ry body 1
-        real dz = d_position[joffset+2] - d_position[ioffset+2]; //rz body 2 - rz body 1
+        real dx = px[j] - px[i]; //rx body 2 - rx body 1
+        real dy = py[j] - py[i]; //ry body 2 - ry body 1
+        real dz = pz[j] - pz[i]; //rz body 2 - rz body 1
         
         real r = rsqrt(dx * dx + dy * dy + dz * dz + softening2); //distance magnitud with some softening
         r = (G * d_masses[j] * r * r * r ); //Acceleration formula
@@ -168,9 +167,9 @@ __device__ void calculate_acceleration_values(realptr d_masses, realptr d_positi
     //Fill with 0 the remaining values in the array with 0
     else
     {  
-        S(blockDim.x, blockDim.y, 0, x, y, sdata) = (real) 0.0;    //x
-        S(blockDim.x, blockDim.y, 1, x, y, sdata) = (real) 0.0;    //y
-        S(blockDim.x, blockDim.y, 2, x, y, sdata) = (real) 0.0;    //z
+        S(blockDim.x, blockDim.y, 0, x, y, sdata) = 0.0;    //x
+        S(blockDim.x, blockDim.y, 1, x, y, sdata) = 0.0;    //y
+        S(blockDim.x, blockDim.y, 2, x, y, sdata) = 0.0;    //z
     }
     
 }
@@ -306,19 +305,33 @@ __device__ void warpReduce(volatile realptr sdata, int x, int y)
     }
 }
 
-__global__ void finish_block_reduce (realptr d_acceleration, realptr d_block_holder, int n, unsigned int number_of_blocks_j)
+__global__ void finish_block_reduce (realptr ax, realptr ay, realptr az, realptr d_block_holder, int n, unsigned int number_of_blocks_j)
 {   
 
     int index = threadIdx.x;
     int stride = blockDim.x;
+
     for (int i = index; i < n; i += stride)
     {
-        int ioffset = i * 3;
         for(int j = 0; j < number_of_blocks_j; j++)
         {
-            d_acceleration[ioffset] += S(n,number_of_blocks_j, 0, i, j, d_block_holder);
-            d_acceleration[ioffset + 1] += S(n,number_of_blocks_j, 1, i, j, d_block_holder);
-            d_acceleration[ioffset + 2] += S(n,number_of_blocks_j, 2, i, j, d_block_holder);
+            ax[i] += S(n,number_of_blocks_j, 0, i, j, d_block_holder);
+        } 
+    }
+    
+    for (int i = index; i < n; i += stride)
+    {
+        for(int j = 0; j < number_of_blocks_j; j++)
+        {
+            ay[i] += S(n,number_of_blocks_j, 1, i, j, d_block_holder);
+        } 
+    }
+
+    for (int i = index; i < n; i += stride)
+    {
+        for(int j = 0; j < number_of_blocks_j; j++)
+        {
+            az[i] += S(n,number_of_blocks_j, 2, i, j, d_block_holder);
         } 
     }
 }

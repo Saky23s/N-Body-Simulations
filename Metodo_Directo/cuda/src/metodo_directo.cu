@@ -17,8 +17,8 @@ int simulation_allocate_memory(Simulation* simulation);
 int leapfrog(Simulation* simulation);
 
 //cuda kernels
-__global__ void leapfrog_step(int n, realptr d_velocity, realptr d_acceleration, realptr d_position, real half_dt, real d_dt);
-__global__ void leapfrog_halfstep(int n, realptr d_velocity, realptr d_acceleration, real half_dt);
+__global__ void leapfrog_step(int n, realptr vx, realptr vy, realptr vz, realptr ax, realptr ay, realptr az, realptr x, realptr y, realptr z, real half_dt, real d_dt);
+__global__ void leapfrog_halfstep(int n, realptr vx, realptr vy, realptr vz, realptr ax, realptr ay, realptr az, real half_dt);
 
 #ifdef DIAGNOSTICS
 real checkEnergy(Simulation* simulation);
@@ -149,50 +149,78 @@ int leapfrog(Simulation* simulation)
         return STATUS_ERROR;
 
     //Half step velocity and full step positions
-    leapfrog_step<<<1,1024>>>(simulation->n, simulation->d_velocity, simulation->d_acceleration, simulation->d_position, simulation->half_dt, dt);
+    leapfrog_step<<<1,1024>>>(simulation->n, simulation->d_vx,  simulation->d_vy,  simulation->d_vz, simulation->d_ax,  simulation->d_ay, simulation->d_az, simulation->d_x, simulation->d_y, simulation->d_z, simulation->half_dt, dt);
 
     //Calculate the accelerations with half step velocity and full step position
     if(calculate_acceleration(simulation) == STATUS_ERROR)
         return STATUS_ERROR;
 
-    leapfrog_halfstep<<<1,1>>>(simulation->n, simulation->d_velocity, simulation->d_acceleration, simulation->half_dt);
+    leapfrog_halfstep<<<1,1024>>>(simulation->n, simulation->d_vx,  simulation->d_vy,  simulation->d_vz, simulation->d_ax,  simulation->d_ay, simulation->d_az, simulation->half_dt);
 
     return STATUS_OK;
 }
 
-__global__ void leapfrog_halfstep(int n, realptr d_velocity, realptr d_acceleration, real half_dt)
+__global__ void leapfrog_halfstep(int n, realptr vx, realptr vy, realptr vz, realptr ax, realptr ay, realptr az, real half_dt)
 {   
     int index = threadIdx.x;
     int stride = blockDim.x;
+
+    //Half step velocity
+    //  vn+1/2 = vn + 1/2dt * a(rn)
     for (int i = index; i < n; i += stride)
     {
-        int ioffset = i * 3;
-        //Half step velocity
-        //  vn+1/2 = vn + 1/2dt * a(rn)
-        d_velocity[ioffset] = d_velocity[ioffset] + d_acceleration[ioffset] * half_dt;
-        d_velocity[ioffset+1] = d_velocity[ioffset+1] + d_acceleration[ioffset+1] * half_dt;
-        d_velocity[ioffset+2] = d_velocity[ioffset+2] + d_acceleration[ioffset+2] * half_dt;
+        vx[i] = vx[i] + ax[i] * half_dt;
     }
-}
 
-__global__ void leapfrog_step(int n, realptr d_velocity, realptr d_acceleration, realptr d_position, real half_dt, real d_dt)
+    //Half step velocity
+    //  vn+1/2 = vn + 1/2dt * a(rn)
+    for (int i = index; i < n; i += stride)
+    {
+        vy[i] = vy[i] + ay[i] * half_dt;
+    }
+
+    //Half step velocity
+    //  vn+1/2 = vn + 1/2dt * a(rn)
+    for (int i = index; i < n; i += stride)
+    {
+        vz[i] = vz[i] + az[i] * half_dt;
+    }
+    
+}   
+
+__global__ void leapfrog_step(int n, realptr vx, realptr vy, realptr vz, realptr ax, realptr ay, realptr az, realptr x, realptr y, realptr z, real half_dt, real d_dt)
 {   
     int index = threadIdx.x;
     int stride = blockDim.x;
+
     for (int i = index; i < n; i += stride)
     {
-        int ioffset = i * 3;
-        //Half step velocity
+        //  Half step velocity
         //  vn+1/2 = vn + 1/2dt * a(rn)
-        d_velocity[ioffset] = d_velocity[ioffset] + d_acceleration[ioffset] * half_dt;
-        d_velocity[ioffset+1] = d_velocity[ioffset+1] + d_acceleration[ioffset+1] * half_dt;
-        d_velocity[ioffset+2] = d_velocity[ioffset+2] + d_acceleration[ioffset+2] * half_dt;
-
+        vx[i] = vx[i] + ax[i] * half_dt;
         //Use that velocity to full step the position
         //  rn+1 = rn + dt*vn+1/2
-        d_position[ioffset] = d_position[ioffset] + d_velocity[ioffset] * d_dt;
-        d_position[ioffset+1] = d_position[ioffset+1] + d_velocity[ioffset+1] * d_dt;
-        d_position[ioffset+2] = d_position[ioffset+2] + d_velocity[ioffset+2] * d_dt;
+        x[i] = x[i] + vx[i] * d_dt;
+    }
+    
+    for (int i = index; i < n; i += stride)
+    {
+        //  Half step velocity
+        //  vn+1/2 = vn + 1/2dt * a(rn)
+        vy[i] = vy[i] + ay[i] * half_dt;
+        //Use that velocity to full step the position
+        //  rn+1 = rn + dt*vn+1/2
+        y[i] = y[i] + vy[i] * d_dt;
+    }
+
+    for (int i = index; i < n; i += stride)
+    {
+        //  Half step velocity
+        //  vn+1/2 = vn + 1/2dt * a(rn)
+        vz[i] = vz[i] + az[i] * half_dt;
+        //Use that velocity to full step the position
+        //  rn+1 = rn + dt*vn+1/2
+        z[i] = z[i] + vz[i] * d_dt;
     }
 }
 
