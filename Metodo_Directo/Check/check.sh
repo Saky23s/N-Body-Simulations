@@ -27,7 +27,8 @@ cuda=false
 Open_MP=false
 vectorial=false
 vectorial_openmp=false
-
+step=2
+time_sim=0.1
 for arg in "$@" 
 do
     case $arg in
@@ -54,6 +55,11 @@ do
         -ov) 
             
             vectorial_openmp=true
+            ;;
+        -h) 
+            
+            step=10
+            time_sim=1
             ;;
         *)
             ;;
@@ -83,8 +89,8 @@ do
   ./generate_random $n >/dev/null
 
   cd ../
-  ./simulation_secuencial 0.1 ../Starting_Configurations/bin_files/random.bin >/dev/null
-  cp /dev/shm/data/2.bin Check/secuential.bin >/dev/null
+  ./simulation_secuencial $time_sim ../Starting_Configurations/bin_files/random.bin >/dev/null
+  cp /dev/shm/data/$step.bin Check/secuential.bin >/dev/null
 
   #Testing for vectorial
   if [ $vectorial == true ]; then 
@@ -99,9 +105,9 @@ do
       mkdir /dev/shm/data 2>/dev/null
     fi
 
-    ./simulation_secuencial_vectorial 0.1 ../Starting_Configurations/bin_files/random.bin >/dev/null
+    ./simulation_secuencial_vectorial $time_sim ../Starting_Configurations/bin_files/random.bin >/dev/null
 
-    cp /dev/shm/data/2.bin Check/vectorial.bin >/dev/null
+    cp /dev/shm/data/$step.bin Check/vectorial.bin >/dev/null
 
     cd Check/
     ./compare $1 secuential.bin vectorial.bin
@@ -131,9 +137,9 @@ do
       mkdir /dev/shm/data 2>/dev/null
     fi
 
-    ./simulation_OpenMP 0.1 ../Starting_Configurations/bin_files/random.bin >/dev/null
+    ./simulation_OpenMP $time_sim ../Starting_Configurations/bin_files/random.bin >/dev/null
 
-    cp /dev/shm/data/2.bin Check/OpenMP.bin >/dev/null
+    cp /dev/shm/data/$step.bin Check/OpenMP.bin >/dev/null
 
     cd Check/
     ./compare $1 secuential.bin OpenMP.bin >/dev/null
@@ -162,9 +168,9 @@ do
       mkdir /dev/shm/data 2>/dev/null
     fi
 
-    ./simulation_OpenMP_vectorial 0.1 ../Starting_Configurations/bin_files/random.bin >/dev/null
+    ./simulation_OpenMP_vectorial $time_sim ../Starting_Configurations/bin_files/random.bin >/dev/null
 
-    cp /dev/shm/data/2.bin Check/openmp_vectorial.bin >/dev/null
+    cp /dev/shm/data/$step.bin Check/openmp_vectorial.bin >/dev/null
 
     cd Check/
     ./compare $1 secuential.bin openmp_vectorial.bin
@@ -192,9 +198,9 @@ do
       mkdir /dev/shm/data 2>/dev/null
     fi
 
-    ./simulation_cuda 0.1 ../Starting_Configurations/bin_files/random.bin >/dev/null
+    ./simulation_cuda $time_sim ../Starting_Configurations/bin_files/random.bin >/dev/null
 
-    cp /dev/shm/data/2.bin Check/cuda.bin >/dev/null
+    cp /dev/shm/data/$step.bin Check/cuda.bin >/dev/null
 
     cd Check/
     ./compare $1 secuential.bin cuda.bin
