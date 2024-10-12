@@ -16,20 +16,19 @@
 //Macros to correctly access multidimensional arrays that has been flatten 
 #define S(size_i, size_j, cord, i, j, pointer) pointer[(size_i * size_j * cord) + (size_j * i) + j]
 
-
 //Cuda kernels
-__device__ void calculate_acceleration_values(realptr d_masses, realptr px, realptr py, realptr pz, realptr sdata, int n);
+__device__ void calculate_acceleration_values(realptr d_masses, realptr position, realptr sdata, int n);
 
 template <unsigned int blockSize>
-__device__ void warpReduce(volatile realptr sdata, int x, int y);
+__device__ void warpReduce(volatile realptr sdata, int baseIndex0, int baseIndex1, int baseIndex2);
 
 template <unsigned int blockSize>
-__global__ void calculate_acceleration_values_block_reduce(realptr d_masses, realptr x, realptr y, realptr z, realptr d_block_holder, int n, unsigned int number_of_blocks_j);
+__global__ void calculate_acceleration_values_block_reduce(realptr d_masses, realptr position, realptr d_block_holder, int n, unsigned int number_of_blocks_j);
 
 template <unsigned int blockSize>
 __device__ void full_block_reduction (realptr d_block_holder, realptr sdata, int n, unsigned int number_of_blocks_j);
 
-__global__ void finish_block_reduce (realptr ax, realptr ay, realptr az, realptr d_block_holder, int n, unsigned int number_of_blocks_j);
+__global__ void finish_block_reduce (realptr acceleration, realptr d_block_holder, int n, unsigned int number_of_blocks_j);
 
 #define cudaErrorCheck(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 
@@ -64,49 +63,45 @@ int calculate_acceleration(Simulation* simulation)
         return STATUS_ERROR;
 
     //Set up memory for cuda as 0 for reduccions
-    cudaMemset( simulation->d_block_holder, 0.0, 3 * simulation->n  * simulation->gridDims.y * sizeof(simulation->d_block_holder[0]));
-    cudaMemset( simulation->d_ax, 0.0, simulation->n  * sizeof(simulation->d_ax[0]));
-    cudaMemset( simulation->d_ay, 0.0, simulation->n  * sizeof(simulation->d_ay[0]));
-    cudaMemset( simulation->d_az, 0.0, simulation->n  * sizeof(simulation->d_az[0]));
+    cudaMemset( simulation->d_block_holder, 0.0, 3 * simulation->n  * simulation->gridDimsGrav.y * sizeof(simulation->d_block_holder[0]));
+    cudaMemset( simulation->d_acceleration, 0.0, 3 * simulation->n  * sizeof(simulation->d_acceleration[0]));
 
     //Call cuda with the correct block size
-    switch (simulation->threadBlockDims.y)
+    switch (simulation->threadBlockDimsGrav.y)
     {   
         case 1024:
-            calculate_acceleration_values_block_reduce<1024><<<simulation->gridDims, simulation->threadBlockDims, 3 * simulation->threadBlockDims.x * simulation->threadBlockDims.y * sizeof(real)>>>(simulation->d_masses, simulation->d_x, simulation->d_y, simulation->d_z, simulation->d_block_holder ,simulation->n, simulation->gridDims.y);
+            calculate_acceleration_values_block_reduce<1024><<<simulation->gridDimsGrav, simulation->threadBlockDimsGrav, 3 * simulation->threadBlockDimsGrav.x * simulation->threadBlockDimsGrav.y * sizeof(real)>>>(simulation->d_masses, simulation->d_positions, simulation->d_block_holder ,simulation->n, simulation->gridDimsGrav.y);
             break;
         case 512:
-            calculate_acceleration_values_block_reduce<512><<<simulation->gridDims, simulation->threadBlockDims, 3 * simulation->threadBlockDims.x * simulation->threadBlockDims.y * sizeof(real)>>>(simulation->d_masses, simulation->d_x, simulation->d_y, simulation->d_z, simulation->d_block_holder ,simulation->n, simulation->gridDims.y);
+            calculate_acceleration_values_block_reduce<512><<<simulation->gridDimsGrav, simulation->threadBlockDimsGrav, 3 * simulation->threadBlockDimsGrav.x * simulation->threadBlockDimsGrav.y * sizeof(real)>>>(simulation->d_masses, simulation->d_positions, simulation->d_block_holder ,simulation->n, simulation->gridDimsGrav.y);
             break;
         case 256:
-            calculate_acceleration_values_block_reduce<256><<<simulation->gridDims, simulation->threadBlockDims, 3 * simulation->threadBlockDims.x * simulation->threadBlockDims.y * sizeof(real)>>>(simulation->d_masses, simulation->d_x, simulation->d_y, simulation->d_z, simulation->d_block_holder ,simulation->n, simulation->gridDims.y);
+            calculate_acceleration_values_block_reduce<256><<<simulation->gridDimsGrav, simulation->threadBlockDimsGrav, 3 * simulation->threadBlockDimsGrav.x * simulation->threadBlockDimsGrav.y * sizeof(real)>>>(simulation->d_masses, simulation->d_positions, simulation->d_block_holder ,simulation->n, simulation->gridDimsGrav.y);
             break;
         case 128:
-            calculate_acceleration_values_block_reduce<128><<<simulation->gridDims, simulation->threadBlockDims, 3 * simulation->threadBlockDims.x * simulation->threadBlockDims.y * sizeof(real)>>>(simulation->d_masses, simulation->d_x, simulation->d_y, simulation->d_z, simulation->d_block_holder ,simulation->n, simulation->gridDims.y);
+            calculate_acceleration_values_block_reduce<128><<<simulation->gridDimsGrav, simulation->threadBlockDimsGrav, 3 * simulation->threadBlockDimsGrav.x * simulation->threadBlockDimsGrav.y * sizeof(real)>>>(simulation->d_masses, simulation->d_positions, simulation->d_block_holder ,simulation->n, simulation->gridDimsGrav.y);
             break;
         case 64:
-            calculate_acceleration_values_block_reduce<64><<<simulation->gridDims, simulation->threadBlockDims, 3 * simulation->threadBlockDims.x * simulation->threadBlockDims.y * sizeof(real)>>>(simulation->d_masses, simulation->d_x, simulation->d_y, simulation->d_z, simulation->d_block_holder ,simulation->n, simulation->gridDims.y);
+            calculate_acceleration_values_block_reduce<64><<<simulation->gridDimsGrav, simulation->threadBlockDimsGrav, 3 * simulation->threadBlockDimsGrav.x * simulation->threadBlockDimsGrav.y * sizeof(real)>>>(simulation->d_masses, simulation->d_positions, simulation->d_block_holder ,simulation->n, simulation->gridDimsGrav.y);
             break;            
         case 32:
-            calculate_acceleration_values_block_reduce<32><<<simulation->gridDims, simulation->threadBlockDims, 3 * simulation->threadBlockDims.x * simulation->threadBlockDims.y * sizeof(real)>>>(simulation->d_masses, simulation->d_x, simulation->d_y, simulation->d_z, simulation->d_block_holder ,simulation->n, simulation->gridDims.y);
+            calculate_acceleration_values_block_reduce<32><<<simulation->gridDimsGrav, simulation->threadBlockDimsGrav, 3 * simulation->threadBlockDimsGrav.x * simulation->threadBlockDimsGrav.y * sizeof(real)>>>(simulation->d_masses, simulation->d_positions, simulation->d_block_holder ,simulation->n, simulation->gridDimsGrav.y);
             break;
     }
     
     
     cudaError_t status = cudaGetLastError();
     cudaErrorCheck(status);
-    
-    //Maybe here I should check how many reductions should I do, for now until I can handle a million bodies two is enough
-    finish_block_reduce<<<1,1024>>>(simulation->d_ax, simulation->d_ay, simulation->d_az, simulation->d_block_holder, simulation->n, simulation->gridDims.y);
+
+    finish_block_reduce<<<simulation->gridDimsLeap,simulation->threadBlockLeap>>>(simulation->d_acceleration, simulation->d_block_holder, simulation->n, simulation->gridDimsGrav.y);
     
     status = cudaGetLastError();
     cudaErrorCheck(status);
-
     return STATUS_OK;
 }
 
 template <unsigned int blockSize>
-__global__ void calculate_acceleration_values_block_reduce(realptr d_masses, realptr x, realptr y, realptr z, realptr d_block_holder, int n, unsigned int number_of_blocks_j)
+__global__ void calculate_acceleration_values_block_reduce(realptr d_masses, realptr position, realptr d_block_holder, int n, unsigned int number_of_blocks_j)
 /**
  * A cuda kernel that calculate the 3n**2 acceleration values and reduce them to an array of size of 3n * gridDim.y. 
  * @param d_masses (realptr): A cuda array of size n with the masses of each body
@@ -120,14 +115,14 @@ __global__ void calculate_acceleration_values_block_reduce(realptr d_masses, rea
     extern __shared__ real sdata[];
 
     //Calculate aceleration values
-    calculate_acceleration_values(d_masses, x, y, z, sdata, n);
+    calculate_acceleration_values(d_masses, position, sdata, n);
         
     //Reduce all values of this block
     full_block_reduction<blockSize>(d_block_holder, sdata, n, number_of_blocks_j);
 }
 
 
-__device__ void calculate_acceleration_values(realptr d_masses, realptr px, realptr py, realptr pz, realptr sdata, int n)
+__device__ void calculate_acceleration_values(realptr d_masses, realptr position, realptr sdata, int n)
 /**
  * Cuda kernel that calculates the acceleration values that each body suffers from every other body
  * @param d_masses (realptr): A cuda array of size n with the masses of each body
@@ -142,20 +137,16 @@ __device__ void calculate_acceleration_values(realptr d_masses, realptr px, real
 
     //Get universal position
     int i = threadIdx.x + blockIdx.x * blockDim.x;
-    int j = threadIdx.y + blockIdx.y * blockDim.y;
-
-    int ioffset = i * 3;
-    int joffset = j * 3;
-    
+    int j = threadIdx.y + blockIdx.y * blockDim.y;    
     
     real softening2 = softening * softening;
 
     //Calculate pull of one body by other body
     if(i < n && j < n && i != j)
     {   
-        real dx = px[j] - px[i]; //rx body 2 - rx body 1
-        real dy = py[j] - py[i]; //ry body 2 - ry body 1
-        real dz = pz[j] - pz[i]; //rz body 2 - rz body 1
+        real dx = position[j] - position[i]; //rx body 2 - rx body 1
+        real dy = position[j + n] - position[i + n]; //ry body 2 - ry body 1
+        real dz = position[j + n + n] - position[i + n + n]; //rz body 2 - rz body 1
         
         real r = rsqrt(dx * dx + dy * dy + dz * dz + softening2); //distance magnitud with some softening
         r = (G * d_masses[j] * r * r * r ); //Acceleration formula
@@ -192,68 +183,71 @@ __device__ void full_block_reduction (realptr d_block_holder, realptr sdata, int
 
     //Get universal position
     int i = threadIdx.x + blockIdx.x * blockDim.x;
-    
-    __syncthreads();
+    int baseIndex0 = (blockDim.y * x) + y;
+    int baseIndex1 = (blockDim.x * blockDim.y) + (blockDim.y * x) + y;
+    int baseIndex2 = (blockDim.x * blockDim.y * 2) + (blockDim.y * x) + y;
 
+    __syncthreads();
+    
     //Unrolled reduction
     if (blockSize >= 1024) 
     {   
         if (y < 512) 
         { 
-            S(blockDim.x, blockDim.y, 0, x, y, sdata) += S(blockDim.x, blockDim.y, 0, x, y + 512, sdata);
-            S(blockDim.x, blockDim.y, 1, x, y, sdata) += S(blockDim.x, blockDim.y, 1, x, y + 512, sdata);
-            S(blockDim.x, blockDim.y, 2, x, y, sdata) += S(blockDim.x, blockDim.y, 2, x, y + 512, sdata);
-            __syncthreads();
+            sdata[baseIndex0] += sdata[baseIndex0 + 512];
+            sdata[baseIndex1] += sdata[baseIndex1 + 512];
+            sdata[baseIndex2] += sdata[baseIndex2 + 512];
         }
+        __syncthreads();
     }
 
     if (blockSize >= 512) 
     {   
         if (y < 256) 
         { 
-            S(blockDim.x, blockDim.y, 0, x, y, sdata) += S(blockDim.x, blockDim.y, 0, x, y + 256, sdata);
-            S(blockDim.x, blockDim.y, 1, x, y, sdata) += S(blockDim.x, blockDim.y, 1, x, y + 256, sdata);
-            S(blockDim.x, blockDim.y, 2, x, y, sdata) += S(blockDim.x, blockDim.y, 2, x, y + 256, sdata);
-            __syncthreads();
+            sdata[baseIndex0] += sdata[baseIndex0 + 256];
+            sdata[baseIndex1] += sdata[baseIndex1 + 256];
+            sdata[baseIndex2] += sdata[baseIndex2 + 256];
         }
+        __syncthreads();
     }
 
     if (blockSize >= 256) 
     {   
         if (y < 128) 
         { 
-            S(blockDim.x, blockDim.y, 0, x, y, sdata) += S(blockDim.x, blockDim.y, 0, x, y + 128, sdata);
-            S(blockDim.x, blockDim.y, 1, x, y, sdata) += S(blockDim.x, blockDim.y, 1, x, y + 128, sdata);
-            S(blockDim.x, blockDim.y, 2, x, y, sdata) += S(blockDim.x, blockDim.y, 2, x, y + 128, sdata);
-            __syncthreads();
+            sdata[baseIndex0] += sdata[baseIndex0 + 128];
+            sdata[baseIndex1] += sdata[baseIndex1 + 128];
+            sdata[baseIndex2] += sdata[baseIndex2 + 128];
         }
+        __syncthreads();
     }
 
     if (blockSize >= 128) 
     {   
         if (y < 64) 
         { 
-            S(blockDim.x, blockDim.y, 0, x, y, sdata) += S(blockDim.x, blockDim.y, 0, x, y + 64, sdata);
-            S(blockDim.x, blockDim.y, 1, x, y, sdata) += S(blockDim.x, blockDim.y, 1, x, y + 64, sdata);
-            S(blockDim.x, blockDim.y, 2, x, y, sdata) += S(blockDim.x, blockDim.y, 2, x, y + 64, sdata);
-            __syncthreads();
+            sdata[baseIndex0] += sdata[baseIndex0 + 64];
+            sdata[baseIndex1] += sdata[baseIndex1 + 64];
+            sdata[baseIndex2] += sdata[baseIndex2 + 64];
         }
+        __syncthreads();
     }
 
     if (y < 32 && i < n) 
-        warpReduce<blockSize>(sdata, x, y);
+        warpReduce<blockSize>(sdata, baseIndex0, baseIndex1, baseIndex2);
     
     // write result for this block to global mem
     if (y == 0)
     {
-        S(n, number_of_blocks_j, 0, i, blockIdx.y, d_block_holder) += S(blockDim.x, blockDim.y, 0, x, 0, sdata);
-        S(n, number_of_blocks_j, 1, i, blockIdx.y, d_block_holder) += S(blockDim.x, blockDim.y, 1, x, 0, sdata);
-        S(n, number_of_blocks_j, 2, i, blockIdx.y, d_block_holder) += S(blockDim.x, blockDim.y, 2, x, 0, sdata);
+        S(n, number_of_blocks_j, 0, i, blockIdx.y, d_block_holder) += sdata[baseIndex0];
+        S(n, number_of_blocks_j, 1, i, blockIdx.y, d_block_holder) += sdata[baseIndex1];
+        S(n, number_of_blocks_j, 2, i, blockIdx.y, d_block_holder) += sdata[baseIndex2];
     } 
 }
 
 template <unsigned int blockSize>
-__device__ void warpReduce(volatile realptr sdata, int x, int y) 
+__device__ void warpReduce(volatile realptr sdata, int baseIndex0, int baseIndex1, int baseIndex2)
 /**
  * A cuda kernel that helps in the reduction process. It completly reduces a warp
  * It implements a modified version of warpReduce from https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf
@@ -265,73 +259,96 @@ __device__ void warpReduce(volatile realptr sdata, int x, int y)
 {   
     if (blockSize >= 64) 
     {
-        S(blockDim.x, blockDim.y, 0, x, y, sdata) += S(blockDim.x, blockDim.y, 0, x, y + 32, sdata);
-        S(blockDim.x, blockDim.y, 1, x, y, sdata) += S(blockDim.x, blockDim.y, 1, x, y + 32, sdata);
-        S(blockDim.x, blockDim.y, 2, x, y, sdata) += S(blockDim.x, blockDim.y, 2, x, y + 32, sdata);
+        sdata[baseIndex0] += sdata[baseIndex0 + 32];
+        sdata[baseIndex1] += sdata[baseIndex1 + 32];
+        sdata[baseIndex2] += sdata[baseIndex2 + 32];
     }
 
     if (blockSize >= 32) 
     {
-        S(blockDim.x, blockDim.y, 0, x, y, sdata) += S(blockDim.x, blockDim.y, 0, x, y+16, sdata);
-        S(blockDim.x, blockDim.y, 1, x, y, sdata) += S(blockDim.x, blockDim.y, 1, x, y+16, sdata);
-        S(blockDim.x, blockDim.y, 2, x, y, sdata) += S(blockDim.x, blockDim.y, 2, x, y+16, sdata);
+        sdata[baseIndex0] += sdata[baseIndex0 + 16];
+        sdata[baseIndex1] += sdata[baseIndex1 + 16];
+        sdata[baseIndex2] += sdata[baseIndex2 + 16];
     }
 
     if (blockSize >= 16)
     {
-        S(blockDim.x, blockDim.y, 0, x, y, sdata) += S(blockDim.x, blockDim.y, 0, x, y+8, sdata);
-        S(blockDim.x, blockDim.y, 1, x, y, sdata) += S(blockDim.x, blockDim.y, 1, x, y+8, sdata);
-        S(blockDim.x, blockDim.y, 2, x, y, sdata) += S(blockDim.x, blockDim.y, 2, x, y+8, sdata);
+        sdata[baseIndex0] += sdata[baseIndex0 + 8];
+        sdata[baseIndex1] += sdata[baseIndex1 + 8];
+        sdata[baseIndex2] += sdata[baseIndex2 + 8];
     }   
 
     if (blockSize >= 8) 
     {
-        S(blockDim.x, blockDim.y, 0, x, y, sdata) += S(blockDim.x, blockDim.y, 0, x, y+4, sdata);
-        S(blockDim.x, blockDim.y, 1, x, y, sdata) += S(blockDim.x, blockDim.y, 1, x, y+4, sdata);
-        S(blockDim.x, blockDim.y, 2, x, y, sdata) += S(blockDim.x, blockDim.y, 2, x, y+4, sdata);
+        sdata[baseIndex0] += sdata[baseIndex0 + 4];
+        sdata[baseIndex1] += sdata[baseIndex1 + 4];
+        sdata[baseIndex2] += sdata[baseIndex2 + 4];
     }
 
     if (blockSize >= 4) 
     {
-        S(blockDim.x, blockDim.y, 0, x, y, sdata) += S(blockDim.x, blockDim.y, 0, x, y+2, sdata);
-        S(blockDim.x, blockDim.y, 1, x, y, sdata) += S(blockDim.x, blockDim.y, 1, x, y+2, sdata);
-        S(blockDim.x, blockDim.y, 2, x, y, sdata) += S(blockDim.x, blockDim.y, 2, x, y+2, sdata);
+        sdata[baseIndex0] += sdata[baseIndex0 + 2];
+        sdata[baseIndex1] += sdata[baseIndex1 + 2];
+        sdata[baseIndex2] += sdata[baseIndex2 + 2];
     }
     if (blockSize >= 2) 
     {
-        S(blockDim.x, blockDim.y, 0, x, y, sdata) += S(blockDim.x, blockDim.y, 0, x, y + 1, sdata);
-        S(blockDim.x, blockDim.y, 1, x, y, sdata) += S(blockDim.x, blockDim.y, 1, x, y + 1, sdata);
-        S(blockDim.x, blockDim.y, 2, x, y, sdata) += S(blockDim.x, blockDim.y, 2, x, y + 1, sdata);
+        sdata[baseIndex0] += sdata[baseIndex0 + 1];
+        sdata[baseIndex1] += sdata[baseIndex1 + 1];
+        sdata[baseIndex2] += sdata[baseIndex2 + 1];
     }
 }
 
-__global__ void finish_block_reduce (realptr ax, realptr ay, realptr az, realptr d_block_holder, int n, unsigned int number_of_blocks_j)
-{   
+__global__ void finish_block_reduce (realptr acceleration, realptr d_block_holder, int n, unsigned int number_of_blocks_j)
+{
+    int i = threadIdx.x + blockIdx.x * blockDim.x;
 
-    int index = threadIdx.x;
-    int stride = blockDim.x;
+    if (i < n) 
+    {
+        // Use registers to store intermediate sums
+        real sum_x = 0.0;
+        real sum_y = 0.0;
+        real sum_z = 0.0;
 
-    for (int i = index; i < n; i += stride)
-    {
-        for(int j = 0; j < number_of_blocks_j; j++)
-        {
-            ax[i] += S(n,number_of_blocks_j, 0, i, j, d_block_holder);
-        } 
-    }
-    
-    for (int i = index; i < n; i += stride)
-    {
-        for(int j = 0; j < number_of_blocks_j; j++)
-        {
-            ay[i] += S(n,number_of_blocks_j, 1, i, j, d_block_holder);
-        } 
-    }
+        // Precompute base index part to avoid redundant calculation
+        int baseIndex0 = number_of_blocks_j * i;  
+        int baseIndex1 = n * number_of_blocks_j + number_of_blocks_j * i;  
+        int baseIndex2 = n * number_of_blocks_j * 2 + number_of_blocks_j * i;  
 
-    for (int i = index; i < n; i += stride)
-    {
-        for(int j = 0; j < number_of_blocks_j; j++)
+        // Perform the reduction in the loop
+        // Unrolling if number_of_blocks_j is small, this case for 4
+        for (int j = 0; j < number_of_blocks_j; j += 4) 
         {
-            az[i] += S(n,number_of_blocks_j, 2, i, j, d_block_holder);
-        } 
+            sum_x += d_block_holder[baseIndex0 + j];
+            sum_y += d_block_holder[baseIndex1 + j];
+            sum_z += d_block_holder[baseIndex2 + j];
+
+            //All threads should enter or not enter this loop
+            if (j + 1 < number_of_blocks_j) 
+            {
+                sum_x += d_block_holder[baseIndex0 + j + 1];
+                sum_y += d_block_holder[baseIndex1 + j + 1];
+                sum_z += d_block_holder[baseIndex2 + j + 1];
+            }
+            if (j + 2 < number_of_blocks_j) 
+            {
+                sum_x += d_block_holder[baseIndex0 + j + 2];
+                sum_y += d_block_holder[baseIndex1 + j + 2];
+                sum_z += d_block_holder[baseIndex2 + j + 2];
+            }
+            if (j + 3 < number_of_blocks_j) 
+            {
+                sum_x += d_block_holder[baseIndex0 + j + 3];
+                sum_y += d_block_holder[baseIndex1 + j + 3];
+                sum_z += d_block_holder[baseIndex2 + j + 3];
+            }
+        }
+
+
+        // After the loop, store the results to global memory
+        acceleration[i] += sum_x;
+        acceleration[i + n] += sum_y;
+        acceleration[i + 2 * n] += sum_z;
     }
 }
+

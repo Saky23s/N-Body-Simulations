@@ -19,12 +19,9 @@ typedef struct _Simulation
 {   
     //Bodies variables
     realptr masses;
-    realptr x;
-    realptr y;
-    realptr z;
-    realptr vx;
-    realptr vy;
-    realptr vz;
+    realptr positions;
+    realptr velocity;
+
     int n;
 
     //Control variables
@@ -34,18 +31,15 @@ typedef struct _Simulation
 
     //Cuda variables
     realptr d_masses;
-    realptr d_x;
-    realptr d_y;
-    realptr d_z;
-    realptr d_ax;
-    realptr d_ay;
-    realptr d_az;
-    realptr d_vx;
-    realptr d_vy;
-    realptr d_vz;
+    realptr d_positions;
+    realptr d_acceleration;
+    realptr d_velocity;
     realptr d_block_holder;
-    dim3 threadBlockDims;
-    dim3 gridDims;
+    dim3 threadBlockDimsGrav;
+    dim3 gridDimsGrav;
+
+    dim3 threadBlockLeap;
+    dim3 gridDimsLeap;
 
 } _Simulation;
 

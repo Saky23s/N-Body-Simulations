@@ -64,16 +64,10 @@ int output(Simulation* simulation, int* filenumber)
         (*filenumber) += 1;
 
         //Pass the positions back from gpu
-        cudaMemcpy( simulation->x, simulation->d_x, simulation->n * sizeof(simulation->d_x[0]), cudaMemcpyDeviceToHost);
-        cudaMemcpy( simulation->y, simulation->d_y, simulation->n * sizeof(simulation->d_y[0]), cudaMemcpyDeviceToHost);
-        cudaMemcpy( simulation->z, simulation->d_z, simulation->n * sizeof(simulation->d_z[0]), cudaMemcpyDeviceToHost);
-
-        
+        cudaMemcpy( simulation->positions, simulation->d_positions, simulation->n * 3 * sizeof(simulation->d_positions[0]), cudaMemcpyDeviceToHost);
+                
         //Save
         if(save_values_bin(simulation, *filenumber) == STATUS_ERROR)
-            return STATUS_ERROR;
-
-        if(save_values_csv(simulation, *filenumber) == STATUS_ERROR)
             return STATUS_ERROR;
 
         //Schedule next output
@@ -149,7 +143,7 @@ Simulation* load_bodies(char* filepath)
                 continue;
             }
 
-            if(fscanf(f, "%lf,%lf,%lf,%lf,%lf,%lf,%lf,%*f\n", &simulation->x[j], &simulation->y[j], &simulation->z[j], &simulation->masses[j], &simulation->vx[j], &simulation->vy[j], &(simulation->vz[j])) == EOF)
+            if(fscanf(f, "%lf,%lf,%lf,%lf,%lf,%lf,%lf,%*f\n", &simulation->positions[j], &simulation->positions[j+simulation->n], &simulation->positions[j+2*simulation->n], &simulation->masses[j], &simulation->velocity[j], &simulation->velocity[j+simulation->n], &(simulation->velocity[j+2*simulation->n])) == EOF)
             {
                 printf("Error reading %s\n", filepath);
                 return NULL;
@@ -197,13 +191,13 @@ Simulation* load_bodies(char* filepath)
             if(fread(buffer,sizeof(buffer),1,f) == 0)
                 return NULL;
                 
-            simulation->x[i] = buffer[0];     //x
-            simulation->y[i] = buffer[1];   //y
-            simulation->z[i] = buffer[2];   //z
+            simulation->positions[i] = buffer[0];     //x
+            simulation->positions[i + simulation->n] = buffer[1];   //y
+            simulation->positions[i + 2 * simulation->n] = buffer[2];   //z
             simulation->masses[i] = buffer[3];              //mass
-            simulation->vx[i] = buffer[4];      //vx
-            simulation->vy[i] = buffer[5];    //vy
-            simulation->vz[i] = buffer[6];    //vz
+            simulation->velocity[i] = buffer[4];      //vx
+            simulation->velocity[i + simulation->n] = buffer[5];    //vy
+            simulation->velocity[i + 2 * simulation->n] = buffer[6];    //vz
 
             //Buffer[7] is radius, currently useless for data, only useful for graphics
         }
@@ -218,12 +212,8 @@ Simulation* load_bodies(char* filepath)
     //Copy masses to cuda memory
     cudaMemcpy( simulation->d_masses,  simulation->masses, simulation->n * sizeof(simulation->masses[0]),cudaMemcpyHostToDevice);
     
-    cudaMemcpy( simulation->d_x,  simulation->x, simulation->n * sizeof(simulation->x[0]),cudaMemcpyHostToDevice);
-    cudaMemcpy( simulation->d_y,  simulation->y, simulation->n * sizeof(simulation->y[0]),cudaMemcpyHostToDevice);
-    cudaMemcpy( simulation->d_z,  simulation->z, simulation->n * sizeof(simulation->z[0]),cudaMemcpyHostToDevice);
-    cudaMemcpy( simulation->d_vx,  simulation->vx, simulation->n * sizeof(simulation->vx[0]),cudaMemcpyHostToDevice);
-    cudaMemcpy( simulation->d_vy,  simulation->vy, simulation->n * sizeof(simulation->vy[0]),cudaMemcpyHostToDevice);
-    cudaMemcpy( simulation->d_vz,  simulation->vz, simulation->n * sizeof(simulation->vz[0]),cudaMemcpyHostToDevice);
+    cudaMemcpy( simulation->d_positions,  simulation->positions, 3 * simulation->n * sizeof(simulation->d_positions[0]),cudaMemcpyHostToDevice);
+    cudaMemcpy( simulation->d_velocity,  simulation->velocity, 3 * simulation->n * sizeof(simulation->d_velocity[0]),cudaMemcpyHostToDevice);
 
     //Set time to 0
     simulation-> tnow = 0.0;
@@ -247,15 +237,11 @@ int simulation_allocate_memory(Simulation* simulation)
         return STATUS_ERROR;
 
     simulation->masses = (realptr) malloc (simulation->n * sizeof(simulation->masses[0]));
-    simulation->x = (realptr) malloc (simulation->n * sizeof(simulation->x[0]));
-    simulation->y = (realptr) malloc (simulation->n * sizeof(simulation->y[0]));
-    simulation->z = (realptr) malloc (simulation->n * sizeof(simulation->z[0]));
-    simulation->vx = (realptr) malloc (simulation->n * sizeof(simulation->vx[0]));
-    simulation->vy = (realptr) malloc (simulation->n * sizeof(simulation->vy[0]));
-    simulation->vz = (realptr) malloc (simulation->n * sizeof(simulation->vz[0]));
+    simulation->positions = (realptr) malloc (3 * simulation->n * sizeof(simulation->positions[0]));
+    simulation->velocity = (realptr) malloc (3 * simulation->n * sizeof(simulation->velocity[0]));
 
-    if(simulation->masses == NULL || simulation->x == NULL || simulation->y == NULL || simulation->z == NULL 
-    || simulation->vx == NULL || simulation->vy == NULL || simulation->vz == NULL )
+
+    if(simulation->masses == NULL || simulation->positions == NULL || simulation->velocity == NULL)
     {
         return STATUS_ERROR;
     }
@@ -266,34 +252,16 @@ int simulation_allocate_memory(Simulation* simulation)
     status = cudaMalloc(&simulation->d_masses, simulation->n * sizeof(simulation->d_masses[0]));
     cudaErrorCheck(status);
 
-    status = cudaMalloc(&simulation->d_x, simulation->n * sizeof(simulation->d_x[0]));
+    status = cudaMalloc(&simulation->d_positions, 3 * simulation->n * sizeof(simulation->d_positions[0]));
     cudaErrorCheck(status);
 
-    status = cudaMalloc(&simulation->d_y, simulation->n * sizeof(simulation->d_y[0]));
+    status = cudaMalloc(&simulation->d_acceleration,3 * simulation->n * sizeof(simulation->d_acceleration[0]));
     cudaErrorCheck(status);
 
-    status = cudaMalloc(&simulation->d_z, simulation->n * sizeof(simulation->d_z[0]));
+    status = cudaMalloc(&simulation->d_velocity,3 * simulation->n * sizeof(simulation->d_velocity[0]));
     cudaErrorCheck(status);
 
-    status = cudaMalloc(&simulation->d_vx, simulation->n * sizeof(simulation->d_vx[0]));
-    cudaErrorCheck(status);
-
-    status = cudaMalloc(&simulation->d_vy, simulation->n * sizeof(simulation->d_vy[0]));
-    cudaErrorCheck(status);
-
-    status = cudaMalloc(&simulation->d_vz, simulation->n * sizeof(simulation->d_vz[0]));
-    cudaErrorCheck(status);
-
-    status = cudaMalloc(&simulation->d_ax, simulation->n * sizeof(simulation->d_ax[0]));
-    cudaErrorCheck(status);
-
-    status = cudaMalloc(&simulation->d_ay, simulation->n * sizeof(simulation->d_ay[0]));
-    cudaErrorCheck(status);
-
-    status = cudaMalloc(&simulation->d_az, simulation->n * sizeof(simulation->d_az[0]));
-    cudaErrorCheck(status);
-
-    status = cudaMalloc(&simulation->d_block_holder, simulation->n  * simulation->gridDims.y * 3 * sizeof(simulation->d_block_holder[0]));
+    status = cudaMalloc(&simulation->d_block_holder, simulation->n  * simulation->gridDimsGrav.y * 3 * sizeof(simulation->d_block_holder[0]));
     cudaErrorCheck(status);
 
     return STATUS_OK;
@@ -330,7 +298,7 @@ int save_values_csv(Simulation* simulation, int filenumber)
     for(int i = 0; i < simulation->n; i++)
     {      
         //Print body as csv x,y,z
-        if(fprintf(f, "%lf,%lf,%lf\n", simulation->x[i], simulation->y[i], simulation->z[i]) < 0)
+        if(fprintf(f, "%lf,%lf,%lf\n", simulation->positions[i], simulation->positions[i + simulation->n], simulation->positions[i + 2*simulation->n]) < 0)
             return STATUS_ERROR;
     }
 
@@ -356,7 +324,6 @@ int save_values_bin(Simulation* simulation, int filenumber)
     if(simulation == NULL)
         return STATUS_ERROR;
 
-
     //Construct output name
     snprintf(filename, 256, "/dev/shm/data/%d.bin", filenumber);
 
@@ -366,13 +333,13 @@ int save_values_bin(Simulation* simulation, int filenumber)
         return STATUS_ERROR;
 
     real buffer[3];
-
+    
     //For all n bodies
     for(int i = 0; i < simulation->n; i++)
     {      
-        buffer[0] = simulation->x[i];
-        buffer[1] = simulation->y[i];
-        buffer[2] =  simulation->z[i];
+        buffer[0] = simulation->positions[i];
+        buffer[1] = simulation->positions[i + simulation->n];
+        buffer[2] =  simulation->positions[i + 2*simulation->n];
         
         //write body as bin x,y,z
         if(fwrite(buffer, sizeof(buffer), 1, f) == 0)
@@ -385,19 +352,21 @@ int save_values_bin(Simulation* simulation, int filenumber)
 
 int calculate_kernel_size(Simulation* simulation)
 /**
- * A simple funtion to calculate the most efficient kernel sizes for this simulation depending of the size of N
+ * A simple funtion to set kernel sizes for this simulation depending of the size of N
  * @param simulation (Simulation*): a pointer to the simulation
  */
 {   
 
-    if(simulation == NULL)
-        return STATUS_ERROR;
-
+    //Calculate kernel sizes
     unsigned int x = 1;
-    unsigned int y = 1024;
+    unsigned int y = 256;
 
-    simulation->threadBlockDims = {x, y, 1} ; //1024 threads per block
-    simulation->gridDims = { (unsigned int) ceil( simulation->n/(double) x), (unsigned int) ceil( simulation->n/(double) y), 1 }; 
+    simulation->threadBlockDimsGrav = {x, y, 1} ; //256 threads per block
+    simulation->gridDimsGrav = { (unsigned int) (simulation->n + x - 1) / x,  (unsigned int) (simulation->n + y - 1) / y, 1 }; 
+
+    x = 256;
+    simulation->threadBlockLeap = x; //256 threads per block
+    simulation->gridDimsLeap = (unsigned int) (simulation->n + x - 1) / x; 
 
     return STATUS_OK;
 }
@@ -411,24 +380,13 @@ void free_simulation(Simulation* simulation)
     //Frees all internal arrays
     free(simulation->masses);
 
-    free(simulation->x);
-    free(simulation->y);
-    free(simulation->z);
-    free(simulation->vx);
-    free(simulation->vy);
-    free(simulation->vz);
+    free(simulation->positions);
+    free(simulation->velocity);
 
     cudaFree(simulation->d_masses);
-    cudaFree(simulation->d_x);
-    cudaFree(simulation->d_y);
-    cudaFree(simulation->d_z);
-    cudaFree(simulation->d_vx);
-    cudaFree(simulation->d_vy);
-    cudaFree(simulation->d_vz);
-    cudaFree(simulation->d_ax);
-    cudaFree(simulation->d_ay);
-    cudaFree(simulation->d_az);
-
+    cudaFree(simulation->d_acceleration);
+    cudaFree(simulation->d_positions);
+    cudaFree(simulation->d_velocity);
     cudaFree(simulation->d_block_holder);
 
     //Frees the simulation object itself

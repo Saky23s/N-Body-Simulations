@@ -17,12 +17,30 @@ int simulation_allocate_memory(Simulation* simulation);
 int leapfrog(Simulation* simulation);
 
 //cuda kernels
-__global__ void leapfrog_step(int n, realptr vx, realptr vy, realptr vz, realptr ax, realptr ay, realptr az, realptr x, realptr y, realptr z, real half_dt, real d_dt);
-__global__ void leapfrog_halfstep(int n, realptr vx, realptr vy, realptr vz, realptr ax, realptr ay, realptr az, real half_dt);
+__global__ void leapfrog_step(int n, realptr velocity, realptr acceleration, realptr position, real half_dt, real d_dt);
+__global__ void leapfrog_halfstep(int n, realptr velocity, realptr acceleration, real half_dt);
 
 #ifdef DIAGNOSTICS
 real checkEnergy(Simulation* simulation);
 #endif
+
+
+#define cudaErrorCheck(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+
+/**
+ * Function to check errors in CUDA. 
+ * 
+ * Extracted from StackOverflow 
+ * @link https://stackoverflow.com/a/14038590
+ */
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
+{
+    if (code != cudaSuccess) 
+    {
+        fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+        if (abort) exit(code);
+    }
+}
 
 double run_simulation(double T, char* filename)
 /**
@@ -72,7 +90,7 @@ double run_simulation(double T, char* filename)
         free_simulation(simulation);
         return STATUS_ERROR;
     }
-
+        
     //And save it
     if(output(simulation, &filenumber) == STATUS_ERROR)
     {
@@ -149,79 +167,56 @@ int leapfrog(Simulation* simulation)
         return STATUS_ERROR;
 
     //Half step velocity and full step positions
-    leapfrog_step<<<1,1024>>>(simulation->n, simulation->d_vx,  simulation->d_vy,  simulation->d_vz, simulation->d_ax,  simulation->d_ay, simulation->d_az, simulation->d_x, simulation->d_y, simulation->d_z, simulation->half_dt, dt);
+    leapfrog_step<<<simulation->gridDimsLeap,simulation->threadBlockLeap>>>(simulation->n, simulation->d_velocity, simulation->d_acceleration, simulation->d_positions, simulation->half_dt, dt);
+    cudaError_t status = cudaGetLastError();
+    cudaErrorCheck(status);
 
     //Calculate the accelerations with half step velocity and full step position
     if(calculate_acceleration(simulation) == STATUS_ERROR)
         return STATUS_ERROR;
 
-    leapfrog_halfstep<<<1,1024>>>(simulation->n, simulation->d_vx,  simulation->d_vy,  simulation->d_vz, simulation->d_ax,  simulation->d_ay, simulation->d_az, simulation->half_dt);
+    leapfrog_halfstep<<<simulation->gridDimsLeap,simulation->threadBlockLeap>>>(simulation->n, simulation->d_velocity,  simulation->d_acceleration, simulation->half_dt);
+    status = cudaGetLastError();
+    cudaErrorCheck(status);
 
     return STATUS_OK;
 }
 
-__global__ void leapfrog_halfstep(int n, realptr vx, realptr vy, realptr vz, realptr ax, realptr ay, realptr az, real half_dt)
+__global__ void leapfrog_halfstep(int n, realptr velocity, realptr acceleration, real half_dt)
 {   
-    int index = threadIdx.x;
-    int stride = blockDim.x;
+    int i = threadIdx.x + blockIdx.x * blockDim.x;
 
-    //Half step velocity
-    //  vn+1/2 = vn + 1/2dt * a(rn)
-    for (int i = index; i < n; i += stride)
+    if(i < n)
     {
-        vx[i] = vx[i] + ax[i] * half_dt;
-    }
-
-    //Half step velocity
-    //  vn+1/2 = vn + 1/2dt * a(rn)
-    for (int i = index; i < n; i += stride)
-    {
-        vy[i] = vy[i] + ay[i] * half_dt;
-    }
-
-    //Half step velocity
-    //  vn+1/2 = vn + 1/2dt * a(rn)
-    for (int i = index; i < n; i += stride)
-    {
-        vz[i] = vz[i] + az[i] * half_dt;
+        //  Half step velocity 
+        //  vn+1/2 = vn + 1/2dt * a(rn)
+        velocity[i] = velocity[i] + acceleration[i] * half_dt;
+        velocity[i + n] = velocity[i + n] + acceleration[i + n] * half_dt;
+        velocity[i + 2*n] = velocity[i + 2*n] + acceleration[i + 2*n] * half_dt;
     }
     
-}   
+}
 
-__global__ void leapfrog_step(int n, realptr vx, realptr vy, realptr vz, realptr ax, realptr ay, realptr az, realptr x, realptr y, realptr z, real half_dt, real d_dt)
+__global__ void leapfrog_step(int n, realptr velocity, realptr acceleration, realptr position, real half_dt, real d_dt)
 {   
-    int index = threadIdx.x;
-    int stride = blockDim.x;
+    int i = threadIdx.x + blockIdx.x * blockDim.x;
 
-    for (int i = index; i < n; i += stride)
+    if(i < n)
     {
-        //  Half step velocity
+        //  Half step velocity and use that velocity to full step the position
         //  vn+1/2 = vn + 1/2dt * a(rn)
-        vx[i] = vx[i] + ax[i] * half_dt;
-        //Use that velocity to full step the position
         //  rn+1 = rn + dt*vn+1/2
-        x[i] = x[i] + vx[i] * d_dt;
+        velocity[i] = velocity[i] + acceleration[i] * half_dt;
+        position[i] = position[i] + velocity[i] * d_dt;
+
+        velocity[i + n] = velocity[i + n] + acceleration[i + n] * half_dt;
+        position[i + n] = position[i + n] + velocity[i + n] * d_dt;
+
+        velocity[i + n + n] = velocity[i + n + n] + acceleration[i + n + n] * half_dt;
+        position[i + n + n] = position[i + n + n] + velocity[i + n + n] * d_dt;
+
     }
     
-    for (int i = index; i < n; i += stride)
-    {
-        //  Half step velocity
-        //  vn+1/2 = vn + 1/2dt * a(rn)
-        vy[i] = vy[i] + ay[i] * half_dt;
-        //Use that velocity to full step the position
-        //  rn+1 = rn + dt*vn+1/2
-        y[i] = y[i] + vy[i] * d_dt;
-    }
-
-    for (int i = index; i < n; i += stride)
-    {
-        //  Half step velocity
-        //  vn+1/2 = vn + 1/2dt * a(rn)
-        vz[i] = vz[i] + az[i] * half_dt;
-        //Use that velocity to full step the position
-        //  rn+1 = rn + dt*vn+1/2
-        z[i] = z[i] + vz[i] * d_dt;
-    }
 }
 
 #ifdef DIAGNOSTICS
