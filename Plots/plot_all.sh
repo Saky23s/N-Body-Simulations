@@ -1,44 +1,25 @@
 #!/bin/bash 
 
-make clean
-make
+#./create_plots.sh 1 3001 100 -s
+#cp times.log ./Results/logs/Secuencial.log
+#cp Times.jpeg ./Results/img/Secuencial.jpeg
 
-#Delete old data
-./create_shm_directory.sh
+#./create_plots.sh 1 5001 100 -v
+#cp times.log ./Results/logs/Secuencial_vectorial.log
+#cp Times.jpeg ./Results/img/Secuencial_vectorial.jpeg
 
-./time_simulations_secuencial 1 3001 100 
-cp times.log Secuencial.log
-cp Times.jpeg Secuencial.jpeg
+#./create_plots.sh 1 10001 100 -o
+#cp times.log ./Results/logs/OpenMP.log
+#cp Times.jpeg ./Results/img/OpenMP.jpeg
+#
+#./create_plots.sh 1 10001 100 -ov
+#cp times.log ./Results/logs/OpenMP_vectorial.log
+#cp Times.jpeg ./Results/img/OpenMP_vectorial.jpeg
 
-#Delete old data
-./create_shm_directory.sh
+./create_plots.sh 1 10001 100 -c
+cp times.log ./Results/logs/Cuda.log
+cp Times.jpeg ./Results/img/Cuda.jpeg
 
-./time_simulations_secuencial_vectorial 1 5001 100 
-cp times.log Secuencial_vectorial.log
-cp Times.jpeg Secuencial_vectorial.jpeg
-
-#Delete old data
-./create_shm_directory.sh
-
-./time_simulations_OpenMP 1 5001 100 
-cp times.log OpenMP.log
-cp Times.jpeg OpenMP.jpeg
-
-#Delete old data
-./create_shm_directory.sh
-
-./time_simulations_OpenMP_vectorial 1 5001 100 
-cp times.log OpenMP_vectorial.log
-cp Times.jpeg OpenMP_vectorial.jpeg
-
-./create_shm_directory.sh
-
-./time_simulations_cuda 1 10001 100 
-cp times.log Cuda.log
-cp Times.jpeg Cuda.jpeg
-
-./create_shm_directory.sh
-
-./time_treecode.sh 1 25001 100
-cp times.log Treecode.log
-
+#./time_treecode.sh 100 25001 100 
+#cp times.log ./Results/logs/TreeCode.log
+#cp Times.jpeg ./Results/img/TreeCode.jpeg

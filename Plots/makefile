@@ -93,10 +93,10 @@ metodo_directo_grav_openmp_vectorial.o: ../Metodo_Directo/openmp/src/metodo_dire
 CUDA_CC:=nvcc 
 LDFLAGS_CUDA = -lm
 CUDA_CCFLAGS = -DLINUX -w
-OPTFLAG_CUDA = -O3
+OPTFLAG_CUDA = -O3 
 
 time_simulations_cuda: time_simulations_cuda.cpp metodo_directo_cuda.o metodo_directo_io_cuda.o metodo_directo_grav_cuda.o 
-	$(CUDA_CC) $(CUDA_CCFLAGS) $(LDFLAGS_CUDA) $(OPTFLAG_CUDA) -o time_simulations_cuda \
+	$(CUDA_CC) $(CUDA_CCFLAGS) $(LDFLAGS_CUDA) -o time_simulations_cuda \
 	  time_simulations_cuda.cpp metodo_directo_cuda.o metodo_directo_io_cuda.o metodo_directo_grav_cuda.o -lm
 	rm *.o
 
