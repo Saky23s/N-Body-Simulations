@@ -16,6 +16,7 @@ use std::time::Duration;
 use image::{ImageBuffer, Rgb};
 use std::io::{self, Write};
 use std::env;
+use rand::Rng;
 
 mod shader;
 mod util;
@@ -63,7 +64,7 @@ fn offset<T>(n: u32) -> *const c_void {
 
 
 //Generate VAO 
-unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>, colors: &Vec<f32>, normals: &Vec<f32>) -> u32 {
+unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>, colors: &Vec<f32>) -> u32 {
     // Create VAO and bind it
     let mut vao: u32 = 0;
     gl::GenVertexArrays(1, &mut vao as *mut u32);
@@ -90,17 +91,6 @@ unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>, colors: &Vec<f32>,
     let col_index: u32 = 1;
     gl::VertexAttribPointer(col_index, 4, gl::FLOAT, gl::FALSE, 0, std::ptr::null());
     gl::EnableVertexAttribArray(col_index);
-    
-    // Create normals VBO and bind it
-    let mut normal_vbo: u32 = 0;
-    gl::GenBuffers(1, &mut normal_vbo as *mut u32);
-    gl::BindBuffer(gl::ARRAY_BUFFER, normal_vbo);
-    gl::BufferData(gl::ARRAY_BUFFER, byte_size_of_array(normals), pointer_to_array(normals), gl::STATIC_DRAW);
-    
-    // Configure normals VAP and enable it
-    let normal_index: u32 = 2;
-    gl::VertexAttribPointer(normal_index, 3, gl::FLOAT, gl::FALSE, 0, std::ptr::null());
-    gl::EnableVertexAttribArray(normal_index);
     
     // Generate IBO and bind it
     let mut ibo: u32 = 0;
@@ -138,19 +128,6 @@ unsafe fn draw_root(node: &scene_graph::SceneNode, shaders: &Shader, view_projec
         trasformation  = trasformation  * node_translation * final_camera_rotation;
         view = view * trasformation;
         
-        // Normals rotation
-        let mut normal_transform: glm::Mat3 = glm::identity();
-        normal_transform[(0, 0)] = trasformation[(0, 0)];
-        normal_transform[(0, 1)] = trasformation[(0, 1)];
-        normal_transform[(0, 2)] = trasformation[(0, 2)];
-        normal_transform[(1, 0)] = trasformation[(1, 0)];
-        normal_transform[(1, 1)] = trasformation[(1, 1)];
-        normal_transform[(1, 2)] = trasformation[(1, 2)];
-        normal_transform[(2, 0)] = trasformation[(2, 0)];
-        normal_transform[(2, 1)] = trasformation[(2, 1)];
-        normal_transform[(2, 2)] = trasformation[(2, 2)];
-        
-        gl::UniformMatrix3fv(shaders.get_uniform_location("normal_transform"), 1, gl::FALSE,normal_transform.as_ptr());
         gl::UniformMatrix4fv(shaders.get_uniform_location("transformation"), 1, gl::FALSE, view.as_ptr());
     }
     // Recurse
@@ -185,23 +162,8 @@ unsafe fn draw_sphere(node: &scene_graph::SceneNode, shaders: &Shader, view_proj
         trasformation  = trasformation  * node_translation * final_camera_rotation;
         view = view * trasformation;
         
-        // Normals rotation
-        let mut normal_transform: glm::Mat3 = glm::identity();
-        normal_transform[(0, 0)] = trasformation[(0, 0)];
-        normal_transform[(0, 1)] = trasformation[(0, 1)];
-        normal_transform[(0, 2)] = trasformation[(0, 2)];
-        normal_transform[(1, 0)] = trasformation[(1, 0)];
-        normal_transform[(1, 1)] = trasformation[(1, 1)];
-        normal_transform[(1, 2)] = trasformation[(1, 2)];
-        normal_transform[(2, 0)] = trasformation[(2, 0)];
-        normal_transform[(2, 1)] = trasformation[(2, 1)];
-        normal_transform[(2, 2)] = trasformation[(2, 2)];
-        
-        gl::UniformMatrix3fv(shaders.get_uniform_location("normal_transform"), 1, gl::FALSE,normal_transform.as_ptr());
         gl::UniformMatrix4fv(shaders.get_uniform_location("transformation"), 1, gl::FALSE, view.as_ptr());
-        
-        //node.print();
-        
+                
         gl::BindVertexArray(node.vao_id);
         gl::DrawElements(gl::TRIANGLES, node.index_count, gl::UNSIGNED_INT, std::ptr::null());
     }
@@ -332,8 +294,11 @@ fn main()
         let colors = [
             [1.0,0.8274509803921568,0.00392156862745098, 1.0], //Yellow
             [0.36470588235294116, 0.6784313725490196, 0.9215686274509803, 1.0], //Blue
-            [0.7607843137254902,0.23137254901960785,0.12941176470588237, 1.0]
+            [0.7607843137254902,0.23137254901960785,0.12941176470588237, 1.0],  //Red        
+            //[0.0, 0.8, 0.2, 1.0]  //  Green
             ];
+            
+
         let n_colors = colors.len();
 
         //Create an array of meshs of different colors
@@ -346,9 +311,11 @@ fn main()
             bodies.push(body);
         }
         
+
+
         // Transformation matrixes
-        let mut camera_rotation: Vec<f32> = vec![-0.0000010281801,-0.041666705];
-        let mut camera_translation: Vec<f32> = vec![0.008044068,0.0, 33.0906215];
+        let mut camera_rotation: Vec<f32> = vec![-0.0000010281801,-0.008333366];
+        let mut camera_translation: Vec<f32> = vec![0.008020077,0.0,50.75731];
         
         //Set up trasformation variable
         let mut transformation;
@@ -365,7 +332,7 @@ fn main()
         let mut bodies_vaos: Vec<u32> = Vec::new();
         for body in &bodies
         {
-            let body_vao = unsafe { create_vao(&body.vertices, &body.indices, &body.colors, &body.normals) };
+            let body_vao = unsafe { create_vao(&body.vertices, &body.indices, &body.colors) };
             bodies_vaos.push(body_vao);
         }
         
@@ -391,6 +358,13 @@ fn main()
                     //Create
                     bodies_vector.push(SceneNode::from_vao(bodies_vaos[n % n_colors], bodies[n % n_colors].index_count));
                     bodies_vector[n].calculate_reference_point(&bodies[n % n_colors].vertices);
+
+                    
+                    // Create the node with a random color
+                    //let random_index = rand::thread_rng().gen_range(0..bodies_vaos.len());
+                    //bodies_vector.push(SceneNode::from_vao(bodies_vaos[random_index], bodies[random_index].index_count));
+                    //bodies_vector[n].calculate_reference_point(&bodies[random_index].vertices);
+
 
                     //Body is the child of the main node
                     root_node.add_child(&bodies_vector[n]);
@@ -438,7 +412,7 @@ fn main()
         {
 
             //Delta time used for camera movements
-            let delta_time = (1.0 / 24.0) as f32  * 10.0;
+            let delta_time = (1.0 / 60.0) as f32  * 10.0;
             let start = std::time::Instant::now();
             
             // Handle resize events
@@ -607,9 +581,9 @@ fn main()
                 let now = std::time::Instant::now();
 
                 //If it has not been 1/24 of a second dont show next frame
-                if now.duration_since(prevous_frame_time) < Duration::from_secs_f32(1.0 / 24.0)
+                if now.duration_since(prevous_frame_time) < Duration::from_secs_f32(1.0 / 60.0)
                 {   
-                    thread::sleep(Duration::from_secs_f32(1.0 / 24.0)  - now.duration_since(prevous_frame_time));
+                    thread::sleep(Duration::from_secs_f32(1.0 / 60.0)  - now.duration_since(prevous_frame_time));
                 }
 
                 prevous_frame_time = now;
@@ -617,7 +591,7 @@ fn main()
                 context.swap_buffers().unwrap(); // we use "double buffering" to avoid artifacts
             }
             //Debuggin stuff
-            //println!("{},{}", camera_translation[0],camera_translation[2]);
+            //println!("{},{},{}", camera_translation[0],camera_translation[1],camera_translation[2]);
             //println!("{},{}", camera_rotation[0],camera_rotation[1]);
         }
     });
