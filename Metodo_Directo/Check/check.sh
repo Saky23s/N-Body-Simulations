@@ -24,6 +24,7 @@ make clean *>/dev/null
 make all  >/dev/null
 
 cuda=false
+cuda2=false
 Open_MP=false
 vectorial=false
 vectorial_openmp=false
@@ -44,6 +45,9 @@ do
             ;;
         -c) 
             cuda=true
+            ;;
+        -c2) 
+            cuda2=true
             ;;
         -v)
             vectorial=true
@@ -67,7 +71,7 @@ do
 done
 
 #Check at least one was selected for testing
-if [ $vectorial == false -a $cuda == false -a $Open_MP == false -a $vectorial_openmp == false ]; then 
+if [ $vectorial == false -a $cuda == false -a $Open_MP == false -a $vectorial_openmp == false -a $cuda2 == false ]; then 
   echo "ERROR: Select an implementation to check"
   exit 1
 fi
@@ -216,6 +220,38 @@ do
     cd ../
 
   fi
+
+  #Testing for cuda version 2
+  if [ $cuda2 == true ]; then 
+    
+    echo -ne "${YELLOW} TESTING FOR  CUDA V2  FOR $n BODIES ${NC}\r"
+    #Delete old data
+    if [ -d /dev/shm/data ]; then
+      rm -f /dev/shm/data/*.csv 2>/dev/null
+      rm -f /dev/shm/data/*.bin 2>/dev/null
+    else
+      mkdir /dev/shm/data 2>/dev/null
+    fi
+
+    ./simulation_cuda_V2 $time_sim ../Starting_Configurations/bin_files/random.bin >/dev/null
+
+    cp /dev/shm/data/$step.bin Check/cuda2.bin >/dev/null
+
+    cd Check/
+    ./compare $1 secuential.bin cuda2.bin
+
+    if [ $? == 1 ];
+    then
+      echo -e "${CLEAR_LINE}${GREEN} PASSED FOR  CUDA V2  FOR $n BODIES ${NC}"
+    else
+      echo -e "${CLEAR_LINE}${RED} FAILED FOR  CUDA V2  FOR $n BODIES ${NC}"
+      exit 0
+    fi
+
+    cd ../
+
+  fi
+
 done
 
 exit 1

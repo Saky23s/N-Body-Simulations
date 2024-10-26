@@ -2,7 +2,7 @@
 
 # Check if exactly two parameters are provided
 if [ "$#" -lt 2 ]; then
-    echo "Usage: $0 <T> <Filepath> {-c -o -s -h}"
+    echo "Usage: $0 <T> <Filepath> {-s -o -c -c2 -v -vo -ov -w -help}"
     exit 1
 fi
 
@@ -21,6 +21,9 @@ do
             TYPE="cuda"
             ;;
         
+        -c2)
+            TYPE="cuda_V2"
+            ;;
         -v)
             TYPE="secuencial_vectorial"
             ;;
@@ -34,10 +37,13 @@ do
             WINDOW=true
             ;;
         -help) # Explain arguments
-            echo "Usage: $0 <T> <Filepath> {-c -o -s}"
-            echo "-c: Run with cuda"
-            echo "-o: Run with OpenMP"
+            echo "Usage: $0 <T> <Filepath> {-s -o -c -c2 -v -vo -ov -w -help}"
             echo "-s (default): Run secuential"
+            echo "-o: Run with OpenMP"
+            echo "-c: Run with cuda version 1"
+            echo "-c2: Run with cuda version 2"
+            echo "-v: Run secuential with vectorization"
+            echo "-ov or -vo: Run OpenMP with vectorization"
             echo "-w: Show result as a window"
             echo "-help: Show help"
             exit

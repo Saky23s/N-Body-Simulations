@@ -1,5 +1,5 @@
 
-all: time_simulations_secuencial time_simulations_secuencial_vectorial time_simulations_OpenMP time_simulations_OpenMP_vectorial time_simulations_cuda
+all: time_simulations_secuencial time_simulations_secuencial_vectorial time_simulations_OpenMP time_simulations_OpenMP_vectorial time_simulations_cuda time_simulations_cuda_V2
 
 ########################################################################
 # Secuencial:
@@ -111,14 +111,37 @@ metodo_directo_grav_cuda.o: ../Metodo_Directo/cuda/src/metodo_directo_grav.cu ..
 
 ########################################################################
 
+# cuda version 2:
+CUDA_CC:=nvcc 
+LDFLAGS_CUDA = -lm
+VERSION:=-DVERSION_2
+CUDA_CCFLAGS = -DLINUX -w
+OPTFLAG_CUDA = -O3 
+
+time_simulations_cuda_V2: time_simulations_cuda.cpp metodo_directo_cuda_V2.o metodo_directo_io_cuda_V2.o metodo_directo_grav_cuda_V2.o 
+	$(CUDA_CC) $(CUDA_CCFLAGS) $(LDFLAGS_CUDA) -o time_simulations_cuda_V2 \
+	  time_simulations_cuda.cpp metodo_directo_cuda_V2.o metodo_directo_io_cuda_V2.o metodo_directo_grav_cuda_V2.o -lm
+	rm *.o
+
+metodo_directo_cuda_V2.o: ../Metodo_Directo/cuda/src/metodo_directo.cu ../Metodo_Directo/cuda/inc/metodo_directo.h ../Metodo_Directo/cuda/inc/medoto_directo_defs.h
+	$(CUDA_CC) $(CUDA_CCFLAGS) $(DIAGNOSTICS) $(OPTFLAG_CUDA) $(VERSION) -c ../Metodo_Directo/cuda/src/metodo_directo.cu -o metodo_directo_cuda_V2.o
+
+metodo_directo_io_cuda_V2.o: ../Metodo_Directo/cuda/src/metodo_directo_io.cu ../Metodo_Directo/cuda/inc/metodo_directo.h ../Metodo_Directo/cuda/inc/medoto_directo_defs.h
+	$(CUDA_CC) $(CUDA_CCFLAGS) $(DIAGNOSTICS) $(OPTFLAG_CUDA) $(VERSION) -c ../Metodo_Directo/cuda/src/metodo_directo_io.cu -o metodo_directo_io_cuda_V2.o
+
+metodo_directo_grav_cuda_V2.o: ../Metodo_Directo/cuda/src/metodo_directo_grav.cu ../Metodo_Directo/cuda/inc/medoto_directo_defs.h
+	$(CUDA_CC) $(CUDA_CCFLAGS) $(OPTFLAG_CUDA) $(DIAGNOSTICS) $(VERSION) -c ../Metodo_Directo/cuda/src/metodo_directo_grav.cu -o metodo_directo_grav_cuda_V2.o
+
+########################################################################
+
 clean: 
 	rm -f time_simulations_secuencial
 	rm -f time_simulations_OpenMP
 	rm -f time_simulations_cuda
+	rm -f time_simulations_cuda_V2
 	rm -f time_simulations_secuencial_vectorial
 	rm -f time_simulations_OpenMP_vectorial
 	rm -f times.log
 	rm -f fit.log
-	rm *.o
 	
 

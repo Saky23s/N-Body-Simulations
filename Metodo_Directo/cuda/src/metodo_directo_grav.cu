@@ -13,6 +13,7 @@
 
 #include "../inc/medoto_directo_defs.h"
 
+#ifndef VERSION_2
 //Macros to correctly access multidimensional arrays that has been flatten 
 #define S(size_i, size_j, cord, i, j, pointer) pointer[(size_i * size_j * cord) + (size_j * i) + j]
 
@@ -29,7 +30,11 @@ template <unsigned int blockSize>
 __device__ void full_block_reduction (realptr d_block_holder, realptr sdata, int n, unsigned int number_of_blocks_j);
 
 __global__ void finish_block_reduce (realptr acceleration, realptr d_block_holder, int n, unsigned int number_of_blocks_j);
+#endif
 
+#ifdef VERSION_2
+__global__ void calculate_acceleration_onethreadperbody(realptr d_masses, realptr d_positions, realptr d_acceleration, int n);
+#endif
 #define cudaErrorCheck(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 
 /**
@@ -57,11 +62,12 @@ int calculate_acceleration(Simulation* simulation)
  * @return status (int): STATUS_ERROR (0) in case of error STATUS_OK(1) in case everything when ok
  *         The resulting acceleration is stored inside acceleration atribute of the simulation
 **/
-{   
+{  
     //Error checking
     if(simulation == NULL)
         return STATUS_ERROR;
 
+    #ifndef VERSION_2
     //Set up memory for cuda as 0 for reduccions
     cudaMemset( simulation->d_block_holder, 0.0, 3 * simulation->n  * simulation->gridDimsGrav.y * sizeof(simulation->d_block_holder[0]));
     cudaMemset( simulation->d_acceleration, 0.0, 3 * simulation->n  * sizeof(simulation->d_acceleration[0]));
@@ -98,8 +104,60 @@ int calculate_acceleration(Simulation* simulation)
     status = cudaGetLastError();
     cudaErrorCheck(status);
     return STATUS_OK;
+    #endif
+
+    #ifdef VERSION_2
+    int x = 256;
+
+    calculate_acceleration_onethreadperbody<<<simulation->gridDimsLeap,simulation->threadBlockLeap>>>(simulation->d_masses, simulation->d_positions, simulation->d_acceleration ,simulation->n);
+    cudaError_t status = cudaGetLastError();
+    cudaErrorCheck(status);
+    return STATUS_OK;
+    #endif
 }
 
+#ifdef VERSION_2
+__global__ void calculate_acceleration_onethreadperbody(realptr d_masses, realptr d_positions, realptr d_acceleration, int n)
+{
+
+    //Calculate body
+    int i = threadIdx.x + blockIdx.x * blockDim.x;
+    //If body is not valid
+    if(i >= n)
+        return;
+
+    real ax = 0.0;
+    real ay = 0.0;
+    real az = 0.0;
+    real softening2 = softening * softening;
+    
+
+    for(int j = 0; j < n; j++)
+    {   
+        //i and j cant be the same body
+        if(i==j)
+            continue;
+
+        real dx = d_positions[j] - d_positions[i]; //rx body 2 - rx body 1
+        real dy = d_positions[j + n] - d_positions[i + n]; //ry body 2 - ry body 1
+        real dz = d_positions[j + n + n] - d_positions[i + n + n]; //rz body 2 - rz body 1
+        
+        real r = rsqrt(dx * dx + dy * dy + dz * dz + softening2); //distance magnitud with some softening
+        r = (G * d_masses[j] * r * r * r ); //Acceleration formula
+
+        ax += r * dx; //Acceleration formula for x
+        ay += r * dy; //Acceleration formula for y
+        az += r * dz; //Acceleration formula for z
+    }
+
+    d_acceleration[i] = ax;
+    d_acceleration[i+n] = ay;
+    d_acceleration[i+n+n] = az;
+    
+}
+#endif
+
+#ifndef VERSION_2
 template <unsigned int blockSize>
 __global__ void calculate_acceleration_values_block_reduce(realptr d_masses, realptr position, realptr d_block_holder, int n, unsigned int number_of_blocks_j)
 /**
@@ -351,4 +409,4 @@ __global__ void finish_block_reduce (realptr acceleration, realptr d_block_holde
         acceleration[i + 2 * n] += sum_z;
     }
 }
-
+#endif

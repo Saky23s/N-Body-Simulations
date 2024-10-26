@@ -64,7 +64,13 @@ double run_simulation(double T, char* filename)
         return STATUS_ERROR;  
 
     //Print starting message
-    printf("Simulating with CUDA %d bodies\n", simulation->n);
+    #ifndef VERSION_2
+    printf("Simulating with CUDA VERSION 1 %d bodies\n", simulation->n);
+    #endif
+
+    #ifdef VERSION_2
+    printf("Simulating with CUDA VERSION 2 %d bodies\n", simulation->n);
+    #endif
     
     //Calculate the number of steps we will have to take to get to T
     int steps = T / dt;

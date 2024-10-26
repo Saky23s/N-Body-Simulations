@@ -3,5 +3,6 @@ simulation_secuencial
 simulation_OpenMP_vectorial
 simulation_secuencial_vectorial
 simulation_cuda
+simulation_cuda_V2
 Check/compare
 Check/generate_random

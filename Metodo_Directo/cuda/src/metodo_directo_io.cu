@@ -211,7 +211,6 @@ Simulation* load_bodies(char* filepath)
 
     //Copy masses to cuda memory
     cudaMemcpy( simulation->d_masses,  simulation->masses, simulation->n * sizeof(simulation->masses[0]),cudaMemcpyHostToDevice);
-    
     cudaMemcpy( simulation->d_positions,  simulation->positions, 3 * simulation->n * sizeof(simulation->d_positions[0]),cudaMemcpyHostToDevice);
     cudaMemcpy( simulation->d_velocity,  simulation->velocity, 3 * simulation->n * sizeof(simulation->d_velocity[0]),cudaMemcpyHostToDevice);
 
@@ -239,8 +238,6 @@ int simulation_allocate_memory(Simulation* simulation)
     simulation->masses = (realptr) malloc (simulation->n * sizeof(simulation->masses[0]));
     simulation->positions = (realptr) malloc (3 * simulation->n * sizeof(simulation->positions[0]));
     simulation->velocity = (realptr) malloc (3 * simulation->n * sizeof(simulation->velocity[0]));
-
-
     if(simulation->masses == NULL || simulation->positions == NULL || simulation->velocity == NULL)
     {
         return STATUS_ERROR;
@@ -356,7 +353,6 @@ int calculate_kernel_size(Simulation* simulation)
  * @param simulation (Simulation*): a pointer to the simulation
  */
 {   
-
     //Calculate kernel sizes
     unsigned int x = 1;
     unsigned int y = 256;

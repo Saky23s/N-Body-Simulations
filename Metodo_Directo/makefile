@@ -1,5 +1,5 @@
 
-all: simulation_secuencial simulation_secuencial_vectorial simulation_OpenMP simulation_OpenMP_vectorial simulation_cuda
+all: simulation_secuencial simulation_secuencial_vectorial simulation_OpenMP simulation_OpenMP_vectorial simulation_cuda simulation_cuda_V2
 
 #UNCOMMENT THIS LINE FOR DIAGNOSTICS
 #DIAGNOSTICS = -DDIAGNOSTICS
@@ -90,7 +90,7 @@ metodo_directo_grav_openmp_vectorial.o: openmp/src/metodo_directo_grav.c openmp/
 
 ########################################################################
 
-# cuda:
+# cuda version 1:
 CUDA_CC:= nvcc 
 CUDA_CCFLAGS = -DLINUX -w
 LDFLAGS_CUDA = -lm
@@ -112,11 +112,35 @@ metodo_directo_grav_cuda.o: cuda/src/metodo_directo_grav.cu cuda/inc/medoto_dire
 
 ########################################################################
 
+# cuda version 2:
+CUDA_CC:= nvcc 
+VERSION:=-DVERSION_2
+CUDA_CCFLAGS = -DLINUX -w
+LDFLAGS_CUDA = -lm
+OPTFLAG_CUDA = -O3 
+
+simulation_cuda_V2: main.cpp metodo_directo_cuda_V2.o metodo_directo_io_cuda_V2.o metodo_directo_grav_cuda_V2.o 
+	$(CUDA_CC) $(CUDA_CCFLAGS) $(LDFLAGS_CUDA) -o simulation_cuda_V2 \
+	  main.cpp metodo_directo_cuda_V2.o metodo_directo_io_cuda_V2.o metodo_directo_grav_cuda_V2.o -lm
+	rm *.o
+
+metodo_directo_cuda_V2.o: cuda/src/metodo_directo.cu cuda/inc/metodo_directo.h cuda/inc/medoto_directo_defs.h
+	$(CUDA_CC) $(CUDA_CCFLAGS) $(OPTFLAG_CUDA) $(DIAGNOSTICS) $(VERSION) -c cuda/src/metodo_directo.cu -o metodo_directo_cuda_V2.o
+
+metodo_directo_io_cuda_V2.o: cuda/src/metodo_directo_io.cu cuda/inc/metodo_directo.h cuda/inc/medoto_directo_defs.h
+	$(CUDA_CC) $(CUDA_CCFLAGS) $(OPTFLAG_CUDA) $(DIAGNOSTICS) $(VERSION) -c cuda/src/metodo_directo_io.cu -o metodo_directo_io_cuda_V2.o
+
+metodo_directo_grav_cuda_V2.o: cuda/src/metodo_directo_grav.cu cuda/inc/medoto_directo_defs.h
+	$(CUDA_CC) $(CUDA_CCFLAGS) $(OPTFLAG_CUDA) $(DIAGNOSTICS) $(VERSION) -c cuda/src/metodo_directo_grav.cu -o metodo_directo_grav_cuda_V2.o
+
+########################################################################
+
 
 clean:
 	rm simulation_secuencial 2>/dev/null
 	rm simulation_OpenMP 2>/dev/null
 	rm simulation_cuda 2>/dev/null
+	rm simulation_cuda_V2 2>/dev/null
 	rm simulation_secuencial_vectorial 2>/dev/null
 	rm simulation_OpenMP_vectorial 2>/dev/null
 
