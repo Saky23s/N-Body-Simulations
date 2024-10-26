@@ -47,16 +47,18 @@ int main(int argc, char **argv )
 
         //Calculate distance to the center
         double distance = (sqrt(x * x + y * y));
-        values[3] = 1.0 + distance * 0.0;  //mass
+        values[3] = 1.0;  //mass
         
         double baseVelocity = 1.0; 
-        double velocityScale = 3.0; 
+        double velocityScale = 1.5; 
 
         //Calculate vector to the center
         double dx = 0.0 - x;
         double dy = 0.0 - y;
         
-        double velocityFactor = velocityScale * exp(-distance / 7.0); // Adjust the decay rate
+        //double velocityFactor = velocityScale * exp(-distance / 7.0); //Remember: Smaller division, slower to the outside
+        double velocityFactor = velocityScale * pow(1.5, -distance / 7.0); //Remember: Smaller division, slower to the outside
+
         double velMagnitude = baseVelocity * velocityFactor;
         values[4] = dy * velMagnitude;  //vx
         values[5] = -dx * velMagnitude;  //vy

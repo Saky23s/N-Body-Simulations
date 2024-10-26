@@ -19,8 +19,4 @@ double run_simulation(double T, char* filepath);
 
 //Define real
 typedef double real, *realptr;
-#define DOUBLE_PRECISION
-
-//typedef double real, *realptr;
-//#define FLOAT_PRECISION
 #endif

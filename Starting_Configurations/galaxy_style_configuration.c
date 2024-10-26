@@ -7,7 +7,9 @@
 
 int main(int argc, char **argv )
 /**
- * This file is to generate a bin file of N bodies set up as a galaxy 
+ * This file is to generate a bin file of N bodies set up as a galaxy. Based on the work of logacube on github
+ * 
+ * @link https://github.com/logacube/octree-based-N-body-sim
 */
 {   
     //Check arguments
@@ -35,28 +37,29 @@ int main(int argc, char **argv )
     double values[8];
     for (int i = 0; i < n; i++) 
     {
-        double curve = 2* M_PI * (rand() / (double) RAND_MAX);
-        double radius = 30 * (rand() / (double) RAND_MAX);
-        double x = (cos(curve) - sin(curve));
-        double y = (cos(curve) + sin(curve));
+        double angle = 2 * M_PI * (rand() / (double)RAND_MAX); 
+        double radius = (((1.0 / 600.0) * n) + (10.0 / 3.0)) * (0.2 + ((rand() / (double)RAND_MAX))); 
 
 
-        values[0] = radius * x; //x
-        values[1] = radius * y; //y
-        values[2] =  0.02 * ((rand() /(double) RAND_MAX) - 0.5); //z
+        // Position
+        values[0] = radius * cos(angle); // x
+        values[1] = radius * sin(angle); // y
+        values[2] = ((rand() / (double)RAND_MAX) - 0.5) * 0.1; // z 
 
-        double vel = sqrt((G * n) / radius) *0.025;
+        // Mass
+        values[3] = 1.0;
 
-        values[3] = 1.0;  //mass
+        double vel = sqrt((G * n) / radius) * 0.035;
+        //double vel = sqrt(G  * radius);
 
-        values[4] = -y * vel;  //vx
-        values[5] = x * vel;  //vy
+        values[4] = -values[1]  * vel;  //vx
+        values[5] = values[0]  * vel;  //vy
         values[6] = 0.0;  //vz
 
         values[7] = 1/log2(n);              //radius
 
         fwrite(values, sizeof(values), 1, position_file);
     }
-    fclose(position_file);    
 
+    fclose(position_file);    
 }
