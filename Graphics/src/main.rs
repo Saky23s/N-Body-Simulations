@@ -11,12 +11,11 @@ use std::fs;
 use std::f32::consts::PI;
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
-use std::{mem, os::raw::c_void, ptr};
+use std::{mem, os::raw::c_void};
 use std::time::Duration;
 use image::{ImageBuffer, Rgb};
 use std::io::{self, Write};
 use std::env;
-use rand::Rng;
 
 mod shader;
 mod util;
@@ -24,7 +23,6 @@ mod mesh;
 mod scene_graph;
 
 use glutin::event::{
-    DeviceEvent,
     ElementState::{Pressed, Released},
     Event, KeyboardInput,
     VirtualKeyCode::{self, *},
@@ -38,33 +36,36 @@ use shader::Shader;
 const INITIAL_SCREEN_W: u32 = 1920;
 const INITIAL_SCREEN_H: u32 = 1080;
 
-//Boolean to know if we make a mp4 or a window
 
 // Helper functions to make interacting with OpenGL a little bit prettier. 
 
 // Get the size of an arbitrary array of numbers measured in bytes
-fn byte_size_of_array<T>(val: &[T]) -> isize {
+fn byte_size_of_array<T>(val: &[T]) -> isize 
+{
     std::mem::size_of_val(&val[..]) as isize
 }
 
 // Get the OpenGL-compatible pointer to an arbitrary array of numbers
-fn pointer_to_array<T>(val: &[T]) -> *const c_void {
+fn pointer_to_array<T>(val: &[T]) -> *const c_void 
+{
     &val[0] as *const T as *const c_void
 }
 
 // Get the size of the given type in bytes
-fn size_of<T>() -> i32 {
+fn size_of<T>() -> i32 
+{
     mem::size_of::<T>() as i32
 }
 
 // Get an offset in bytes for n units of type T, represented as a relative pointer
-fn offset<T>(n: u32) -> *const c_void {
+fn offset<T>(n: u32) -> *const c_void 
+{
     (n * mem::size_of::<T>() as u32) as *const T as *const c_void
 }
 
-
 //Generate VAO 
-unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>, colors: &Vec<f32>) -> u32 {
+unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>, colors: &Vec<f32>) -> u32 
+{
     // Create VAO and bind it
     let mut vao: u32 = 0;
     gl::GenVertexArrays(1, &mut vao as *mut u32);
@@ -103,47 +104,60 @@ unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>, colors: &Vec<f32>)
     
 }
 
-//Apply all trasformations to draw the root scene and to all of its children
-unsafe fn draw_root(node: &scene_graph::SceneNode, shaders: &Shader, view_projection_matrix: &glm::Mat4, transformation_so_far: &glm::Mat4) 
+//Draw all bodies
+unsafe fn draw_root(node: &scene_graph::SceneNode, shaders: &Shader, view_projection_matrix: &glm::Mat4, transformation_so_far: &glm::Mat4, n: usize) 
 {
     // Perform any logic needed before drawing the node
     let mut trasformation :glm::Mat4 = *transformation_so_far;
     
-    // Check if node is drawable, if so: set uniforms, bind VAO and draw VAO
-    if node.vao_id != 0 && node.index_count > 0
-    {   
-        let mut view :glm::Mat4  = *view_projection_matrix;
-        let mut node_translation: glm::Mat4 = glm::translation(&glm::vec3(node.position[0], node.position[1], node.position[2]));
-        node_translation = glm::scale(&node_translation,&node.scale); // Scale first, Translate second
-        
-        
-        let mut reference_point_traslation: glm::Mat4 = glm::translation(&glm::vec3(node.reference_point[0], node.reference_point[1], node.reference_point[2]));
-        let mut reference_point_traslation_inverse: glm::Mat4 = glm::translation(&glm::vec3(-node.reference_point[0], -node.reference_point[1], -node.reference_point[2]));
-        let mut rotation_x: glm::Mat4 = glm::rotation(node.rotation[0], &glm::vec3(1.0, 0.0, 0.0));
-        let mut rotation_y: glm::Mat4 = glm::rotation(node.rotation[1], &glm::vec3(0.0, 1.0, 0.0));
-        let mut rotation_z: glm::Mat4 = glm::rotation(node.rotation[2], &glm::vec3(0.0, 0.0, 1.0));
-        let mut final_camera_rotation: glm::Mat4 = reference_point_traslation * rotation_x * rotation_y * rotation_z * reference_point_traslation_inverse;
-        
-        
-        trasformation  = trasformation  * node_translation * final_camera_rotation;
-        view = view * trasformation;
-        
-        gl::UniformMatrix4fv(shaders.get_uniform_location("transformation"), 1, gl::FALSE, view.as_ptr());
-    }
-    // Recurse
+    //Create a vector of size N for all the transfomations
+    let mut modelMatrices: Vec<glm::Mat4> = vec![glm::Mat4::identity(); n]; 
+
+    //For all of the childs, create the transformation
+    let mut i = 0;
     for &child in &node.children 
     {   
-        draw_sphere(&*child, shaders, view_projection_matrix, &trasformation);
+        prepare_spheres(&*child, shaders, view_projection_matrix, &trasformation, &mut modelMatrices, i);
+        i+=1;
+    }
+
+    // Create a Uniform Buffer Object for model matrices
+    let mut ubo: u32 = 0;
+    unsafe 
+    {
+        gl::GenBuffers(1, &mut ubo);
+        gl::BindBuffer(gl::UNIFORM_BUFFER, ubo);
+        
+        let size = (n * std::mem::size_of::<glm::Mat4>()) as isize;
+        
+        gl::BufferData(gl::UNIFORM_BUFFER, size, modelMatrices.as_ptr() as *const std::ffi::c_void, gl::STATIC_DRAW);
+        
+        gl::BindBufferBase(gl::UNIFORM_BUFFER, 0, ubo);
+    }
+    
+    // Bind the VAO for the first child node since they all have the same
+    let vao_id = unsafe { (*node.children[0]).vao_id }; 
+    gl::BindVertexArray(vao_id);
+
+    //Draw all planets in a single draw call
+    unsafe 
+    {
+        gl::DrawElementsInstanced(
+            gl::TRIANGLES,
+            (*node.children[0]).index_count,
+            gl::UNSIGNED_INT,
+            std::ptr::null(),
+            n as i32);
     }
 }
 
-//Apply all trasformations to draw the root scene and to all of its children
-unsafe fn draw_sphere(node: &scene_graph::SceneNode, shaders: &Shader, view_projection_matrix: &glm::Mat4, transformation_so_far: &glm::Mat4) 
-{
-    // Perform any logic needed before drawing the node
+
+unsafe fn prepare_spheres(node: &scene_graph::SceneNode, shaders: &Shader, view_projection_matrix: &glm::Mat4, transformation_so_far: &glm::Mat4, modelMatrices: &mut [glm::Mat4], i: usize)
+{   
+    
     let mut trasformation :glm::Mat4 = *transformation_so_far;
     
-    // Check if node is drawable, if so: set uniforms, bind VAO and draw VAO
+    // Check if node is drawable, if so: make transformations and set them in the matrix
     if node.vao_id != 0 && node.index_count > 0
     {   
         let mut view :glm::Mat4  = *view_projection_matrix;
@@ -161,11 +175,8 @@ unsafe fn draw_sphere(node: &scene_graph::SceneNode, shaders: &Shader, view_proj
         
         trasformation  = trasformation  * node_translation * final_camera_rotation;
         view = view * trasformation;
-        
-        gl::UniformMatrix4fv(shaders.get_uniform_location("transformation"), 1, gl::FALSE, view.as_ptr());
                 
-        gl::BindVertexArray(node.vao_id);
-        gl::DrawElements(gl::TRIANGLES, node.index_count, gl::UNSIGNED_INT, std::ptr::null());
+        *modelMatrices[i] = *view;
     }
 }
 
@@ -231,11 +242,6 @@ fn main()
     // Make a reference of this vector to send to the render thread
     let pressed_keys = Arc::clone(&arc_pressed_keys);
 
-    // Set up shared tuple for tracking mouse movement between frames
-    let arc_mouse_delta = Arc::new(Mutex::new((0f32, 0f32)));
-    // Make a reference of this tuple to send to the render thread
-    let mouse_delta = Arc::clone(&arc_mouse_delta);
-
     // Set up shared tuple for tracking changes to the window size
     let arc_window_size = Arc::new(Mutex::new((INITIAL_SCREEN_W, INITIAL_SCREEN_H, false)));
     // Make a reference of this tuple to send to the render thread
@@ -245,16 +251,13 @@ fn main()
     let should_close = Arc::new(Mutex::new(false));
     // Clone a reference to the shared flag for use outside the event loop
     let should_close_clone = should_close.clone();
-
+    //Get how many images we will have to read
     let mut number_of_pngs = -2;
-
     let paths = fs::read_dir("/dev/shm/data/").unwrap();
-
     for path in paths 
     {
         number_of_pngs = number_of_pngs + 1;
     }
-    
     
     // Spawn a separate thread for rendering, so event handling doesn't block rendering
     let render_thread = thread::spawn(move || 
@@ -271,51 +274,25 @@ fn main()
 
         let mut window_aspect_ratio = INITIAL_SCREEN_W as f32 / INITIAL_SCREEN_H as f32;
 
-
         let (mut width, mut height): (u32, u32) = context.window().inner_size().into();
 
-        // Set up openGL
+        //Set up opengl
         unsafe 
         {
-            gl::Enable(gl::DEPTH_TEST);
-            gl::DepthFunc(gl::LESS);
-            gl::Enable(gl::CULL_FACE);
-            gl::Disable(gl::MULTISAMPLE);
-            gl::Enable(gl::BLEND);
-            //gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
-            //gl::BlendFunc(gl::ONE, gl::ONE);
-            gl::BlendFuncSeparate(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA, gl::ONE, gl::ONE);
-            //gl::BlendEquation(gl::FUNC_ADD);
-            gl::Enable(gl::DEBUG_OUTPUT_SYNCHRONOUS);
-            gl::DebugMessageCallback(Some(util::debug_callback), ptr::null());
-        }
-
-        //Set up some different colors for the bodies
-        let colors = [
-            [1.0,0.8274509803921568,0.00392156862745098, 1.0], //Yellow
-            [0.36470588235294116, 0.6784313725490196, 0.9215686274509803, 1.0], //Blue
-            [0.7607843137254902,0.23137254901960785,0.12941176470588237, 1.0],  //Red        
-            //[0.0, 0.8, 0.2, 1.0]  //  Green
-            ];
             
+            gl::Enable(gl::DEPTH_TEST);
+            gl::DepthFunc(gl::LEQUAL); 
 
-        let n_colors = colors.len();
+            gl::Enable(gl::CULL_FACE);
+            gl::CullFace(gl::BACK); 
 
-        //Create an array of meshs of different colors
-        let mut bodies: Vec<mesh::Mesh> = Vec::new();
-        
-        // Load the bodies with diferent colors
-        for color in colors
-        {
-            let body = mesh::Body::load("resources/sphere.obj", color);
-            bodies.push(body);
+            gl::Disable(gl::MULTISAMPLE);
+            gl::Disable(gl::BLEND)
         }
-        
-
 
         // Transformation matrixes
         let mut camera_rotation: Vec<f32> = vec![-0.0000010281801,-0.008333366];
-        let mut camera_translation: Vec<f32> = vec![0.008020077,0.0,50.75731];
+        let mut camera_translation: Vec<f32> = vec![0.008020077,0.0,5.75731];
         
         //Set up trasformation variable
         let mut transformation;
@@ -328,13 +305,9 @@ fn main()
                 1000.0
             );
         
-        //Set up array of vaos with different colors 
-        let mut bodies_vaos: Vec<u32> = Vec::new();
-        for body in &bodies
-        {
-            let body_vao = unsafe { create_vao(&body.vertices, &body.indices, &body.colors) };
-            bodies_vaos.push(body_vao);
-        }
+        //Set up array of vaos
+        let body = mesh::Body::load("resources/sphere.obj");
+        let body_vao = unsafe { create_vao(&body.vertices, &body.indices, &body.colors) };
         
         //Create the nodes
         //Root node
@@ -356,15 +329,8 @@ fn main()
                 for record in records 
                 {   
                     //Create
-                    bodies_vector.push(SceneNode::from_vao(bodies_vaos[n % n_colors], bodies[n % n_colors].index_count));
-                    bodies_vector[n].calculate_reference_point(&bodies[n % n_colors].vertices);
-
-                    
-                    // Create the node with a random color
-                    //let random_index = rand::thread_rng().gen_range(0..bodies_vaos.len());
-                    //bodies_vector.push(SceneNode::from_vao(bodies_vaos[random_index], bodies[random_index].index_count));
-                    //bodies_vector[n].calculate_reference_point(&bodies[random_index].vertices);
-
+                    bodies_vector.push(SceneNode::from_vao(body_vao, body.index_count));
+                    bodies_vector[n].calculate_reference_point(&(body.vertices));
 
                     //Body is the child of the main node
                     root_node.add_child(&bodies_vector[n]);
@@ -544,7 +510,7 @@ fn main()
             if window == false
             {
                 // Draw
-                unsafe { draw_root(&root_node, &shaders, &transformation, &glm::identity()); }
+                unsafe { draw_root(&root_node, &shaders, &transformation, &glm::identity(), n); }
                 
                 //Save buffer as png
                 let buf_size = (width * height * 4) as usize;
@@ -575,12 +541,12 @@ fn main()
             {
                 let before_draw = std::time::Instant::now();
                 // Draw
-                unsafe { draw_root(&root_node, &shaders, &transformation, &glm::identity()); }
+                unsafe { draw_root(&root_node, &shaders, &transformation, &glm::identity(), n); }
                 let after_draw = std::time::Instant::now();
                 // Compute time passed since the previous frame and since the start of the program
                 let now = std::time::Instant::now();
 
-                //If it has not been 1/24 of a second dont show next frame
+                //If it has not been 1/60 of a second dont show next frame (we cap at 60 fps)
                 if now.duration_since(prevous_frame_time) < Duration::from_secs_f32(1.0 / 60.0)
                 {   
                     thread::sleep(Duration::from_secs_f32(1.0 / 60.0)  - now.duration_since(prevous_frame_time));
@@ -716,19 +682,6 @@ fn main()
                     _ => {}
                 }
             }
-            Event::DeviceEvent //Currently mouse movement is not used for anything, this event can be deleted
-            {
-                event: DeviceEvent::MouseMotion { delta },
-                ..
-            } => 
-            {   
-                // Accumulate mouse movement
-                if let Ok(mut position) = arc_mouse_delta.lock() 
-                {
-                    *position = (position.0 + delta.0 as f32, position.1 + delta.1 as f32);
-                }
-            }
-            
             _ => {}
         }
     });

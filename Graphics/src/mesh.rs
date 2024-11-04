@@ -38,7 +38,7 @@ impl Mesh
 pub struct Body;
 impl Body 
 {
-    pub fn load(path: &str, color: [f32; 4]) -> Mesh 
+    pub fn load(path: &str) -> Mesh 
     {
         let before = std::time::Instant::now();
         let (models, _materials)
@@ -58,7 +58,7 @@ impl Body
         }
 
         let body = models[0].to_owned();
-        Mesh::from(body.mesh, color)
+        Mesh::from(body.mesh, [0.1, 0.3, 0.1, 1.0])
     }
 }
 
