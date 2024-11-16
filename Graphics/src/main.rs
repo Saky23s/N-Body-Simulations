@@ -64,7 +64,7 @@ fn offset<T>(n: u32) -> *const c_void
 }
 
 //Generate VAO 
-unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>, colors: &Vec<f32>) -> u32 
+unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>) -> u32 
 {
     // Create VAO and bind it
     let mut vao: u32 = 0;
@@ -81,17 +81,6 @@ unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>, colors: &Vec<f32>)
     let index = 0;
     gl::VertexAttribPointer(index, 3, gl::FLOAT, gl::FALSE, 0, std::ptr::null());
     gl::EnableVertexAttribArray(index);
-    
-    // Create color VBO
-    let mut col_vbo: u32 = 0;
-    gl::GenBuffers(1, &mut col_vbo as *mut u32);
-    gl::BindBuffer(gl::ARRAY_BUFFER, col_vbo);
-    gl::BufferData(gl::ARRAY_BUFFER, byte_size_of_array(colors), pointer_to_array(colors), gl::STATIC_DRAW);
-    
-    // Configure color VAP and enable it
-    let col_index: u32 = 1;
-    gl::VertexAttribPointer(col_index, 4, gl::FLOAT, gl::FALSE, 0, std::ptr::null());
-    gl::EnableVertexAttribArray(col_index);
     
     // Generate IBO and bind it
     let mut ibo: u32 = 0;
@@ -307,7 +296,7 @@ fn main()
         
         //Set up array of vaos
         let body = mesh::Body::load("resources/sphere.obj");
-        let body_vao = unsafe { create_vao(&body.vertices, &body.indices, &body.colors) };
+        let body_vao = unsafe { create_vao(&body.vertices, &body.indices) };
         
         //Create the nodes
         //Root node

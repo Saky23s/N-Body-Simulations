@@ -1,24 +1,16 @@
 use tobj;
 
-// internal helper
-fn generate_color_vec(color: [f32; 4], num: usize) -> Vec<f32> 
-{
-    color.iter().cloned().cycle().take(num*4).collect()
-}
-
 // Mesh
-
 pub struct Mesh {
     pub vertices    : Vec<f32>,
     pub normals     : Vec<f32>,
-    pub colors      : Vec<f32>,
     pub indices     : Vec<u32>,
     pub index_count : i32,
 }
 
 impl Mesh 
 {
-    pub fn from(mesh: tobj::Mesh, color: [f32; 4]) -> Self 
+    pub fn from(mesh: tobj::Mesh) -> Self 
     {
         let num_verts = mesh.positions.len() / 3;
         let index_count = mesh.indices.len() as i32;
@@ -27,7 +19,6 @@ impl Mesh
             vertices: mesh.positions,
             normals: mesh.normals,
             indices: mesh.indices,
-            colors: generate_color_vec(color, num_verts),
             index_count,
         }
     }
@@ -58,7 +49,7 @@ impl Body
         }
 
         let body = models[0].to_owned();
-        Mesh::from(body.mesh, [0.1, 0.3, 0.1, 1.0])
+        Mesh::from(body.mesh)
     }
 }
 
