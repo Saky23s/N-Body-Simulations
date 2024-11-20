@@ -11,6 +11,7 @@ make clean *>/dev/null
 make all  >/dev/null
 
 TYPE="secuencial";
+TIL_N=0
 for arg in "$@" 
 do
     case $arg in
@@ -23,7 +24,9 @@ do
         -c)
             TYPE="cuda"
             ;;
-        
+        -c2)
+            TYPE="cuda_V2"
+            ;;
         -v)
             TYPE="secuencial_vectorial"
             ;;
@@ -32,6 +35,9 @@ do
             ;;
         -ov)
             TYPE="OpenMP_vectorial"
+            ;;
+        -t)
+            TIL_N=1
             ;;
         *)
             ;;
@@ -46,7 +52,11 @@ else
   mkdir /dev/shm/data
 fi
 
-./time_simulations_${TYPE} $1 $2 $3
+if [ $TIL_N == 1 ]; then
+    ./time_til_N_seconds_${TYPE} $1 $2 $3
+else
+    ./time_simulations_${TYPE} $1 $2 $3
+fi
 
 #plot results
 gnuplot> load 'times.p'

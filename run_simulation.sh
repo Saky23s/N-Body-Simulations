@@ -80,7 +80,7 @@ path="../$2"
 
 if [ $treecode == "true" ]; then
     cd "Tree_Code/"
-    run_treecode.sh $1 $path ${array[@]}
+    ./run_treecode.sh $1 $path ${array[@]}
     cd "../"
 else
     cd "./Metodo_Directo/"
