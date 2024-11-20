@@ -37,26 +37,37 @@ int main(int argc, char **argv )
     double values[8];
     for (int i = 0; i < n; i++) 
     {
-        double angle = 2 * M_PI * (rand() / (double)RAND_MAX); 
-        double radius = (((1.0 / 600.0) * n) + (10.0 / 3.0)) * (0.2 + ((rand() / (double)RAND_MAX))); 
+        double curve = 2 * M_PI * (rand() / (double) RAND_MAX);
+        double radius = 30 * (rand() / (double) RAND_MAX);
+        double x = (cos(curve) - sin(curve));
+        double y = (cos(curve) + sin(curve));
 
 
-        // Position
-        values[0] = radius * cos(angle); // x
-        values[1] = radius * sin(angle); // y
-        values[2] = ((rand() / (double)RAND_MAX) - 0.5) * 0.1; // z 
+        values[0] = radius * x; //x
+        values[1] = radius * y; //y
+        values[2] = 0.0; // z 
 
         // Mass
-        values[3] = 1.0;
+        if ( i % 10 == 0 && i % 100 != 0)
+            values[3] = 2;
+        else if (i % 100 == 0)
+            values[3] = 3;
+        else
+            values[3] = 1;
 
-        double vel = sqrt((G * n) / radius) * 0.035;
+        double vel = sqrt((G * n) / radius) * 0.0035;
         //double vel = sqrt(G  * radius);
 
         values[4] = -values[1]  * vel;  //vx
         values[5] = values[0]  * vel;  //vy
         values[6] = 0.0;  //vz
 
-        values[7] = 1/log2(n);              //radius
+        if ( i % 10 == 0 && i % 100 != 0)
+            values[7] = 2 /log2(n);              //radius
+        else if (i % 100 == 0)
+            values[7] = 3 /log2(n);              //radius
+        else
+            values[7] = 1 /log2(n);              //radius
 
         fwrite(values, sizeof(values), 1, position_file);
     }
